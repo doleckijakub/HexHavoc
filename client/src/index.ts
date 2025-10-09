@@ -1,7 +1,6 @@
-interface Vec2 {
-    x: number,
-    y: number,
-}
+import { Vec2 } from './Vec2';
+
+console.log(Vec2);
 
 enum TerrainTileType {
     EMPTY,
