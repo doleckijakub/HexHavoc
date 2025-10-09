@@ -93,6 +93,14 @@ class Game {
 
     constructor({ wsUrl }: { wsUrl: string }) {
         this.ws = new WebSocket(wsUrl);
+        const canvas = document.querySelector('canvas');
+        
+        if (!canvas) throw new Error('No canvas found');
+        this.canvas = canvas;
+
+        const cc = this.canvas.getContext('2d');
+        if (!cc) throw new Error('No 2D context found');
+        this.cc = cc;
 
         this.ws.onmessage = (ev: MessageEvent<any>): void => {
             this.recv(JSON.parse(ev.data))
@@ -138,12 +146,9 @@ class Game {
 
         this.send(registerPacket);
 
-        this.canvas = document.querySelector('canvas');
-        this.cc = this.canvas.getContext('2d');
+        const keyboard: Record<string, boolean> = {};
 
-        const keyboard = {};
-
-        function isKeyPressed(key: number): boolean {
+        function isKeyPressed(key: string): boolean {
             return keyboard[key] || false;
         }
 
@@ -155,3 +160,5 @@ class Game {
         requestAnimationFrame(this.update);
     }
 }
+
+console.log(Game);
