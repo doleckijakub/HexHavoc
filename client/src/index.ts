@@ -1,73 +1,9 @@
-import { Vec2 } from '@core/Vec2';
-import { Color } from '@core/Color';
+import { Vec2, Color } from '@core';
+import type { Packet, PlayerRegisterPacket, PlayerRegisteredPacket } from '@type';
 
 const color = Color.hex('#ff00ff');
 console.log(new Vec2(0, 0));
 console.log(color);
-
-enum TerrainTileType {
-    EMPTY,
-    GRASS,
-    DIRT,
-    SAND,
-    CLAY,
-}
-
-enum TerrainEntityType {
-    TREE,
-    STONE,
-}
-
-type EntityType = TerrainEntityType /* | ... */;
-
-class Entity {
-    id: string;
-    position: Vec2;
-    ty: EntityType;
-}
-
-interface EntityMovePacket {
-    packet_type: 'entity_move'
-    id: number,
-    new_position: Vec2,
-}
-
-interface TerrainChunk {
-    position: Vec2,
-    contents: TerrainTileType[],
-}
-
-interface TerrainChunkPacket { // sent whenever the player "loads it"
-    packet_type: 'terrain_chunk',
-    chunk: TerrainChunk,
-}
-
-interface EntityLoadPacket {
-    packet_type: 'entity_load',
-    entity: Entity,
-}
-
-interface EntityUnloadPacket {
-    packet_type: 'entity_unload',
-    id: string,
-}
-
-interface PlayerRegisterPacket {
-    packet_type: 'player_register';
-    username: string;
-}
-
-interface PlayerRegisteredPacket {
-    packet_type: 'player_registered',
-    id: string,
-}
-
-type Packet = 
-    EntityMovePacket | EntityLoadPacket | EntityUnloadPacket |
-    TerrainChunkPacket |
-    PlayerRegisterPacket | PlayerRegisteredPacket;
-
-
 
 const CONFIG = {
     KEY_UP: 'w',

@@ -24,8 +24,11 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
     "strictPropertyInitialization": false,
-    "paths": {
+    "paths": {  
+      "@core": ["./src/core"],
       "@core/*": ["./src/core/*"],
+      "@type": ["./src/types"],
+      "@type/*": ["./src/types/*"]
     }
   }
 }
