@@ -3,6 +3,10 @@
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "scripts": {
+    "dev": "bun run ./index.html",
+    "build": "bun build ./index.html --minify --outdir=dist"
+  },
   "name": "client",
   "module": "index.ts",
   "type": "module",

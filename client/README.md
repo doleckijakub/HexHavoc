@@ -1,15 +1,22 @@
-# client
+# HexHavoc client
 
-Bun v1.2.0+ is required for running HTML files.
+Bun **v1.2.0+** is required for running HTML files.
 
-To install dependencies:
+## To install dependencies:
 
 ```bash
 bun install
 ```
 
-To run:
+## Running for development:
 
 ```bash
-bun run ./index.html
+bun run dev
 ```
+
+## Bundling for production
+```bash
+bun run build
+```
+
+> It will output HTML and JS in `dist/` directory
