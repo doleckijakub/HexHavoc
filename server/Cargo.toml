@@ -1,0 +1,10 @@
+[package]
+name = "hexhavoc-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-files = "0.6.8"
+actix-web = "4.11.0"
+actix-ws = "0.3.0"
+futures-util = "0.3.31"

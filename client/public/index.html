@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+    v1
+    <script>
+        const ws = new WebSocket(`ws://${document.location.host}/ws`);
+
+        ws.onmessage = event => {
+            console.log(event.data);
+        };
+    </script>
+</html>
