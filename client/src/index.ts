@@ -1,6 +1,9 @@
-import { Vec2 } from './Vec2';
+import { Vec2 } from '@core/Vec2';
+import { Color } from '@core/Color';
 
-console.log(Vec2);
+const color = Color.hex('#ff00ff');
+console.log(new Vec2(0, 0));
+console.log(color);
 
 enum TerrainTileType {
     EMPTY,
