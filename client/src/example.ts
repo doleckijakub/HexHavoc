@@ -28,15 +28,15 @@ const aspectRatio = glCanvas.width / glCanvas.height;
 const currentRotation = [0, 1];
 const currentScale = [1.0, aspectRatio];
 
-// Vertex information
 const vertexArray = new Float32Array(
   Vec2.flat([
-    new Vec2(10, 10),
-    new Vec2(60, 0),
-    new Vec2(10, -50),
-    new Vec2(10, -50),
-    new Vec2(60, 10),
-    new Vec2(60, -50),
+  new Vec2(0, 0),   // A
+  new Vec2(50, 0),  // B
+  new Vec2(0, 50),  // C
+
+  new Vec2(0, 50),  // C
+  new Vec2(50, 0),  // B
+  new Vec2(50, 50), // D
   ])
 );
 const vertexBuffer = gl.createBuffer();
@@ -78,7 +78,7 @@ function animateScene() {
   const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
   const worldMatrix = new Mat3();
-  worldMatrix.translate(-1, 1).scale(1/glCanvas.width, 1/glCanvas.height);
+  worldMatrix.scale(2/glCanvas.width, -2/glCanvas.height).translate(-1, 1);
 
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
   gl.uniform2fv(uScalingFactor, currentScale);
