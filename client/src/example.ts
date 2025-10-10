@@ -1,12 +1,13 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
 import { Color, Vec2, Mat3 } from "@core";
+import { Geometry } from "./core/Geometry";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
 const gl = glCanvas.getContext("webgl");
 if (!gl) throw new Error("WebGL not supported");
 
-const shadersNames = ["simple.vert", "simple.frag"];
+const shadersNames = ["base2D.vert", "base2D.frag"];
 
 const shadersModules = await Promise.all(
   shadersNames.map((name) => ShaderModule.load(gl, name))
@@ -20,94 +21,65 @@ for (const module of shadersModules) {
 }
 
 const shaderProgram = ShaderProgramFactory.create(gl, [
-  shaders.get("simple.vert")!,
-  shaders.get("simple.frag")!,
+  shaders.get("base2D.vert")!,
+  shaders.get("base2D.frag")!,
 ]);
 
-const aspectRatio = glCanvas.width / glCanvas.height;
-const currentRotation = [0, 1];
-const currentScale = [1.0, aspectRatio];
-
-const vertexArray = new Float32Array(
-  Vec2.flat([
-  new Vec2(0, 0),   // A
-  new Vec2(50, 0),  // B
-  new Vec2(0, 50),  // C
-
-  new Vec2(0, 50),  // C
-  new Vec2(50, 0),  // B
+const geometry = new Geometry(gl, [
+  new Vec2(0, 0), // A
+  new Vec2(50, 0), // B
+  new Vec2(0, 50), // C
+  new Vec2(0, 50), // C
+  new Vec2(50, 0), // B
   new Vec2(50, 50), // D
-  ])
-);
-const vertexBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
+]);
+
 const vertexNumComponents = 2;
-const vertexCount = vertexArray.length / vertexNumComponents;
+const vertexCount = geometry.verticesLength() / vertexNumComponents;
 
 // Rendering data shared with the scalers.
-let uScalingFactor;
+let uPos;
 let uGlobalColor;
-let uRotationVector;
 let aVertexPosition;
-// Animation timing
-let previousTime = 0.0;
-const degreesPerSecond = 90.0;
-let currentAngle = 0.0;
 
-const pink = Color.hex("#fcafd5");
-const black = Color.hex("#000000");
+const worldMatrix = new Mat3();
+worldMatrix.translate(-1, 1).scale(2 / glCanvas.width, -2 / glCanvas.height);
+
+geometry.setPos(new Vec2(100, 100));
+geometry.scale(2, 2);
 animateScene();
+
+setInterval(() => {
+  geometry.setColor(Color.random());
+}, 250);
 
 function animateScene() {
   if (!gl) return;
 
   gl.viewport(0, 0, glCanvas.width, glCanvas.height);
-  gl.clearColor(...pink.arr());
+  gl.clearColor(0.9, 1, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
-
-  const radians = (currentAngle * Math.PI) / 180.0;
-  //currentRotation[0] = Math.sin(radians);
-  //currentRotation[1] = Math.cos(radians);
 
   gl.useProgram(shaderProgram);
 
-  uScalingFactor = gl.getUniformLocation(shaderProgram, "uScalingFactor");
+  uPos = gl.getUniformLocation(shaderProgram, "uPos");
   uGlobalColor = gl.getUniformLocation(shaderProgram, "uGlobalColor");
-  uRotationVector = gl.getUniformLocation(shaderProgram, "uRotationVector");
   const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
-  const worldMatrix = new Mat3();
-  worldMatrix.scale(2/glCanvas.width, -2/glCanvas.height).translate(-1, 1);
+  geometry.translate(new Vec2(1, 0));
 
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
-  gl.uniform2fv(uScalingFactor, currentScale);
-  gl.uniform2fv(uRotationVector, currentRotation);
-  gl.uniform4fv(uGlobalColor, black.arr());
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+  gl.uniformMatrix3fv(uPos, false, geometry.getPos().arr());
+  gl.uniform4fv(uGlobalColor, geometry.getColor().arr());
 
   aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
 
   gl.enableVertexAttribArray(aVertexPosition);
-  gl.vertexAttribPointer(
-    aVertexPosition,
-    vertexNumComponents,
-    gl.FLOAT,
-    false,
-    0,
-    0
-  );
+  gl.vertexAttribPointer(aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 
   gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
 
   requestAnimationFrame((currentTime) => {
-    const deltaAngle =
-      ((currentTime - previousTime) / 1000.0) * degreesPerSecond;
-
-    currentAngle = (currentAngle + deltaAngle) % 360;
-
-    previousTime = currentTime;
     animateScene();
   });
 }
