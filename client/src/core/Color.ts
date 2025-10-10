@@ -5,9 +5,9 @@ export class Color {
     public readonly a: number;
 
     constructor(r: number, g: number, b: number, a: number = 1) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
+        this.r = r / 255;
+        this.g = g / 255;
+        this.b = b / 255;
         this.a = a;
     }
 
@@ -39,6 +39,6 @@ export class Color {
     }
 
     arr(): [number, number, number, number] {
-        return [this.r / 255, this.g / 255, this.b / 255, this.a];
+        return [this.r, this.g, this.b, this.a];
     }
 }
