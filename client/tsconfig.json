@@ -27,6 +27,8 @@
     "paths": {  
       "@core": ["./src/core"],
       "@core/*": ["./src/core/*"],
+      "@render": ["./src/render"],
+      "@render/*": ["./src/render/*"],
       "@type": ["./src/types"],
       "@type/*": ["./src/types/*"]
     }

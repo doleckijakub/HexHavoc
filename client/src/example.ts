@@ -1,4 +1,4 @@
-import { ShaderModule, ShaderProgramFactory } from "@core";
+import { ShaderModule, ShaderProgramFactory } from "@render";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
