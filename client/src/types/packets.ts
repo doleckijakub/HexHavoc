@@ -25,6 +25,7 @@ export interface EntityUnloadPacket {
 
 export interface PlayerRegisterPacket {
     packet_type: 'player_register';
+    game_id: string;
     username: string;
 }
 

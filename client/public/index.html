@@ -1,11 +1,106 @@
 <!DOCTYPE html>
 <html>
-    v1
-    <script>
-        const ws = new WebSocket(`ws://${document.location.host}/ws`);
+    <body>
+        <form id="new-game-form" method="POST" action="/new_game">
+            <input type="text" name="name">
+            <input type="number" name="seed">
+            <input type="submit">
+        </form>
+        <script>
+            const adjectives = [
+                "attractive",
+                "bald",
+                "beautiful",
+                "chubby",
+                "clean",
+                "dazzling",
+                "drab",
+                "elegant",
+                "fancy",
+                "fit",
+                "flabby",
+                "glamorous",
+                "gorgeous",
+                "handsome",
+                "long",
+                "magnificent",
+                "muscular",
+                "plain",
+                "plump",
+                "quaint",
+                "scruffy",
+                "shapely",
+                "short",
+                "skinny",
+                "stocky",
+                "ugly",
+                "unkempt",
+                "unsightly"
+            ];
 
-        ws.onmessage = event => {
-            console.log(event.data);
-        };
-    </script>
+            const nouns = [
+                "signature",
+                "gate",
+                "leader",
+                "poetry",
+                "pollution",
+                "soup",
+                "union",
+                "actor",
+                "cabinet",
+                "breath",
+                "criticism",
+                "data",
+                "management",
+                "clothes",
+                "disease",
+                "storage",
+                "river",
+                "cigarette",
+                "candidate",
+                "event",
+                "county",
+                "comparison",
+                "strategy",
+                "injury",
+                "newspaper",
+                "membership",
+                "profession",
+                "way",
+                "mood",
+                "two",
+                "percentage",
+                "platform",
+                "direction",
+                "chocolate",
+                "perspective",
+                "tale",
+                "contribution",
+                "bread",
+                "quality",
+                "wood",
+                "community",
+                "complaint",
+                "replacement",
+                "connection",
+                "possession",
+                "meal",
+                "dealer",
+                "town",
+                "passenger",
+                "construction"
+            ];
+
+            const new_game_form = document.querySelector("#new-game-form");
+            
+            {
+                const random_adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+                const random_noun = nouns[Math.floor(Math.random() * nouns.length)];
+
+                new_game_form.querySelector('input[name=name]').value = `${random_adjective}-${random_noun}`;
+            }
+
+            new_game_form.querySelector('input[name=seed]').value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+        </script>
+    </body>
 </html>
