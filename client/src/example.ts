@@ -1,5 +1,5 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
-import { Color } from "@core";
+import { Color, Vec2, Mat3 } from "@core";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
@@ -30,7 +30,9 @@ const currentScale = [1.0, aspectRatio];
 
 // Vertex information
 const vertexArray = new Float32Array([
-  -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, -0.5, -0.5,
+    ...new Vec2(0, 0).arr(),
+  ...new Vec2(-0.5, -0.5).arr(),
+  ...new Vec2(-0.5, 0.5).arr(),
 ]);
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
@@ -43,7 +45,6 @@ let uScalingFactor;
 let uGlobalColor;
 let uRotationVector;
 let aVertexPosition;
-
 // Animation timing
 let previousTime = 0.0;
 const degreesPerSecond = 90.0;
@@ -69,7 +70,12 @@ function animateScene() {
   uScalingFactor = gl.getUniformLocation(shaderProgram, "uScalingFactor");
   uGlobalColor = gl.getUniformLocation(shaderProgram, "uGlobalColor");
   uRotationVector = gl.getUniformLocation(shaderProgram, "uRotationVector");
+  const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
+  const worldMatrix = new Mat3();
+  worldMatrix.translate(-0.5, 0.5);
+  
+  gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
   gl.uniform2fv(uScalingFactor, currentScale);
   gl.uniform2fv(uRotationVector, currentRotation);
   gl.uniform4fv(uGlobalColor, black.arr());
