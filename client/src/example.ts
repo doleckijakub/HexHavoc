@@ -1,4 +1,5 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
+import { Color } from "@core";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
@@ -48,13 +49,15 @@ let previousTime = 0.0;
 const degreesPerSecond = 90.0;
 let currentAngle = 0.0;
 
+const pink = Color.hex("#fcafd5");
+const black = Color.hex("#000000");
 animateScene();
 
 function animateScene() {
   if (!gl) return;
 
   gl.viewport(0, 0, glCanvas.width, glCanvas.height);
-  gl.clearColor(0.8, 0.9, 1.0, 1.0);
+  gl.clearColor(...pink.arr());
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   const radians = (currentAngle * Math.PI) / 180.0;
@@ -69,7 +72,7 @@ function animateScene() {
 
   gl.uniform2fv(uScalingFactor, currentScale);
   gl.uniform2fv(uRotationVector, currentRotation);
-  gl.uniform4fv(uGlobalColor, [0.1, 0.7, 0.2, 1.0]);
+  gl.uniform4fv(uGlobalColor, black.arr());
 
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 

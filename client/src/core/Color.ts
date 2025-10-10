@@ -39,6 +39,6 @@ export class Color {
     }
 
     arr(): [number, number, number, number] {
-        return [this.r, this.g, this.b, this.a];
+        return [this.r / 255, this.g / 255, this.b / 255, this.a];
     }
 }
