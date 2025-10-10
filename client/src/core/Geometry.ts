@@ -62,7 +62,8 @@ export class Geometry {
   }
 
   getPos() {
-    return this.pos;
+    const arr = this.pos.arr();
+    return new Vec2(arr[6], arr[7]);
   }
 
   getColor() {

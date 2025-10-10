@@ -79,7 +79,7 @@ function animateScene() {
 
   gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
 
-  if (geometry.getPos().arr()[6] > glCanvas.width) {
+  if (geometry.getPos().x > glCanvas.width) {
     geometry.setPos(new Vec2(0, 100));
   }
 
