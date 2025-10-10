@@ -100,7 +100,7 @@
                 new_game_form.querySelector('input[name=name]').value = `${random_adjective}-${random_noun}`;
             }
 
-            new_game_form.querySelector('input[name=seed]').value = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+            new_game_form.querySelector('input[name=seed]').value = Math.floor(Math.random() * Math.pow(2, 32));
         </script>
     </body>
 </html>

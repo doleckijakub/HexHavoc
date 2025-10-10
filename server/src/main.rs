@@ -6,6 +6,8 @@ use std::{
 
 pub mod model;
 pub mod packet;
+pub mod terrain;
+
 pub mod endpoints {
     pub mod new_game;
     pub mod game;

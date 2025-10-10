@@ -6,7 +6,7 @@ use crate::model::SharedState;
 #[derive(Deserialize)]
 struct NewGameForm {
     name: String,
-    seed: u64,
+    seed: u32,
 }
 
 #[post("/new_game")]

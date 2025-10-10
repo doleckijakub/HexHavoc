@@ -1,17 +1,43 @@
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
 
-use crate::packet::Packet;
+use crate::packet::{ErrorPacket, Packet};
+use crate::terrain::{TileType, TerrainChunk, TerrainGenerator};
+
+#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+pub struct Vec2 {
+    x: f32,
+    y: f32,
+}
+
+impl Vec2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
 
 pub struct Game {
     pub id: Uuid,
     pub name: String,
-    pub seed: u64,
+    
+    // net
     pub player_ids: Vec<Uuid>,
+
+    // world
+    terrain_generator: TerrainGenerator,
 }
+
+const WORLD_SIZE: i32 = 1000;
+const HALF_WORLD_SIZE: i32 = WORLD_SIZE / 2;
+
+const VIEW_RANGE: f32 = 20.0;
+
+const CHUNK_SIZE: i32 = 8;
 
 impl Game {
     pub fn log<S: AsRef<str>>(&self, message: S) {
@@ -21,12 +47,57 @@ impl Game {
     pub fn elog<S: AsRef<str>>(&self, message: S) {
         eprintln!("[G_{}] {}", self.id, message.as_ref());
     }
+
+    pub fn new(id: Uuid, name: String, seed: u32) -> Self {
+        Self {
+            id,
+            name,
+
+            player_ids: vec![],
+
+            terrain_generator: TerrainGenerator::new(seed),
+        }
+    }
+
+    pub fn get_tile(&self, x: i32, y: i32) -> TileType {
+        self.terrain_generator.get_tile(x as f64, y as f64)
+    }
+
+    pub fn get_new_spawn_location(&self) -> Vec2 {
+        let mut rng = rand::rng();
+
+        loop {
+            let x = rng.random_range(-HALF_WORLD_SIZE..HALF_WORLD_SIZE);
+            let y = rng.random_range(-HALF_WORLD_SIZE..HALF_WORLD_SIZE);
+
+            match self.get_tile(x, y) {
+                TileType::Water | TileType::DeepWater => continue,
+                _ => return Vec2::new(x as f32, y as f32),
+            }
+        }
+    }
+
+    pub fn get_chunk(&self, x: i32, y: i32) -> TerrainChunk {
+        let mut contents = vec![];
+        
+        for cy in 0..CHUNK_SIZE {
+            for cx in 0..CHUNK_SIZE {
+                contents.push(self.get_tile(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy));
+            }
+        }
+
+        TerrainChunk {
+            position: Vec2::new(x as f32, y as f32),
+            contents,
+        }
+    }
 }
 
 #[derive(Clone)]
 pub struct PlayerData {
     pub game_id: Uuid,
     pub username: String,
+    pub position: Vec2,
 }
 
 #[derive(Clone)]
@@ -37,15 +108,28 @@ pub struct Client {
 }
 
 impl Client {
+    fn log_prefix(&self) -> String {
+        match &self.player_data {
+            Some(PlayerData { username, .. }) => format!("[C_{}] ({})", self.id, username),
+            None => format!("[C_{}]", self.id),
+        }
+    }
+
     pub fn log<S: AsRef<str>>(&self, message: S) {
-        println!("[C_{}] {}", self.id, message.as_ref());
+        println!("{} {}", self.log_prefix(), message.as_ref());
     }
 
     pub fn elog<S: AsRef<str>>(&self, message: S) {
-        eprintln!("[C_{}] {}", self.id, message.as_ref());
+        println!("{} {}", self.log_prefix(), message.as_ref());
     }
 
     pub async fn send(&mut self, packet: Packet) {
+        let json = serde_json::to_string(&packet).unwrap();
+        self.ws_session.text(json).await.ok();
+    }
+
+    pub async fn send_error<S: AsRef<str>>(&mut self, error: S) {
+        let packet = ErrorPacket::new(error);
         let json = serde_json::to_string(&packet).unwrap();
         self.ws_session.text(json).await.ok();
     }
@@ -58,15 +142,53 @@ impl Client {
                     return;
                 }
 
+                if state.games.get(&game_id).is_none() {
+                    self.send_error("game-not-found").await;
+                }
+
+                for (_, client) in state.clients.iter() {
+                    if let Some(player_data) = &client.player_data {
+                        if player_data.username == username {
+                            self.send_error("username-taken").await;
+                        }
+                    }
+                }
+
+                let game = state.games.get(&game_id).unwrap();
+
+                let position = game.get_new_spawn_location();
+
                 self.player_data = Some(PlayerData {
                     game_id,
-                    username: username.clone()
+                    username,
+                    position,
                 });
 
-                let res = Packet::PlayerRegistered { id: self.id };
+                {
+                    let start_y = ((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
+                    let end_y   = ((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+                    let start_x = ((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
+                    let end_x   = ((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+
+                    for cy in start_y..=end_y {
+                        for cx in start_x..=end_x {
+                            let packet = Packet::TerrainChunk {
+                                chunk: game.get_chunk(cx, cy),
+                            };
+
+                            self.send(packet).await;
+                        }
+                    }
+                }
+
+                let res = Packet::PlayerRegistered {
+                    id: self.id,
+                    position
+                };
+
                 self.send(res).await;
 
-                self.log(format!("Registered as: {}", username));
+                self.log("Registered");
             }
 
             other => {
@@ -91,9 +213,9 @@ impl ServerState {
         }
     }
 
-    pub fn create_game(&mut self, name: &str, seed: u64) -> Uuid {
+    pub fn create_game(&mut self, name: &str, seed: u32) -> Uuid {
         let id = Uuid::new_v4();
-        let game = Game { id, name: name.to_string(), seed, player_ids: vec![] };
+        let game = Game::new(id, name.to_string(), seed);
 
         game.log("Created");
 
