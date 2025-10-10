@@ -21,6 +21,13 @@ export class Mat3 {
     return this;
   }
 
+  scale(sx: number, sy: number): Mat3 {
+    const e = this.elements;
+    e[0] *= sx; e[1] *= sx; e[2] *= sx;
+    e[3] *= sy; e[4] *= sy; e[5] *= sy;
+    return this;
+  }
+
   arr(): Float32Array {
     return this.elements;
   }

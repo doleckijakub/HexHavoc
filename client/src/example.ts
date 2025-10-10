@@ -29,11 +29,16 @@ const currentRotation = [0, 1];
 const currentScale = [1.0, aspectRatio];
 
 // Vertex information
-const vertexArray = new Float32Array([
-    ...new Vec2(0, 0).arr(),
-  ...new Vec2(-0.5, -0.5).arr(),
-  ...new Vec2(-0.5, 0.5).arr(),
-]);
+const vertexArray = new Float32Array(
+  Vec2.flat([
+    new Vec2(10, 10),
+    new Vec2(60, 0),
+    new Vec2(10, -50),
+    new Vec2(10, -50),
+    new Vec2(60, 10),
+    new Vec2(60, -50),
+  ])
+);
 const vertexBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 gl.bufferData(gl.ARRAY_BUFFER, vertexArray, gl.STATIC_DRAW);
@@ -62,8 +67,8 @@ function animateScene() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   const radians = (currentAngle * Math.PI) / 180.0;
-  currentRotation[0] = Math.sin(radians);
-  currentRotation[1] = Math.cos(radians);
+  //currentRotation[0] = Math.sin(radians);
+  //currentRotation[1] = Math.cos(radians);
 
   gl.useProgram(shaderProgram);
 
@@ -73,8 +78,8 @@ function animateScene() {
   const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
   const worldMatrix = new Mat3();
-  worldMatrix.translate(-0.5, 0.5);
-  
+  worldMatrix.translate(-1, 1).scale(1/glCanvas.width, 1/glCanvas.height);
+
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
   gl.uniform2fv(uScalingFactor, currentScale);
   gl.uniform2fv(uRotationVector, currentRotation);
