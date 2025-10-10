@@ -1,6 +1,6 @@
 import type { Vec2 } from '@core/Vec2';
 import type { Entity } from '@core/Entity';
-import type { TerrainChunk } from './game';
+import type { TerrainChunk } from '@type/game';
 
 export interface EntityMovePacket {
     packet_type: 'entity_move'

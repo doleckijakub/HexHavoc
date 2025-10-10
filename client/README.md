@@ -8,7 +8,7 @@ Bun **v1.2.0+** is required for running HTML files.
 bun install
 ```
 
-## Running for development:
+## Running development server:
 
 ```bash
 bun run dev

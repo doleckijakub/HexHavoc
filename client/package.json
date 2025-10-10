@@ -4,7 +4,7 @@
     "@types/bun": "latest"
   },
   "scripts": {
-    "dev": "bun run ./index.html",
+    "dev": "bun run ./src/server.ts",
     "build": "bun build ./index.html --minify --outdir=dist"
   },
   "name": "client",
