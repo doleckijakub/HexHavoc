@@ -79,6 +79,10 @@ function animateScene() {
 
   gl.drawArrays(gl.TRIANGLES, 0, vertexCount);
 
+  if (geometry.getPos().arr()[6] > glCanvas.width) {
+    geometry.setPos(new Vec2(0, 100));
+  }
+
   requestAnimationFrame((currentTime) => {
     animateScene();
   });

@@ -34,6 +34,17 @@ export class Mat3 {
     return this;
   }
 
+  setTranslate(tx: number, ty: number): Mat3;
+  setTranslate(vec: Vec2): Mat3;
+  setTranslate(...args: [number, number] | [Vec2]): Mat3 {
+    const e = this.elements;
+    const [tx, ty] = this.parseVec2Args(args);
+    e[6] = tx;
+    e[7] = ty;
+
+    return this;
+  }
+
   scale(sx: number, sy: number): Mat3;
   scale(vec: Vec2): Mat3;
   scale(...args: [number, number] | [Vec2]): Mat3 {

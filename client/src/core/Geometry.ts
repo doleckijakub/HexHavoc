@@ -44,7 +44,7 @@ export class Geometry {
   setPos(x: number, y: number): void;
   setPos(...args: [Vec2] | [number, number]): void {
     const vec = this.readVec2(args);
-    this.pos = new Mat3().translate(vec);
+    this.pos.setTranslate(vec);
   }
 
   translate(x: number, y: number): void;
