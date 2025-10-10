@@ -61,9 +61,17 @@ export class Geometry {
     this.pos.scale(vec);
   }
 
+  rotate(angle: number): void {
+    this.pos.rotate(angle);
+  }
+
   getPos() {
     const arr = this.pos.arr();
     return new Vec2(arr[6], arr[7]);
+  }
+
+  getPosMatrix() {
+    return this.pos;
   }
 
   getColor() {

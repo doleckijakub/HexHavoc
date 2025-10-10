@@ -47,6 +47,7 @@ worldMatrix.translate(-1, 1).scale(2 / glCanvas.width, -2 / glCanvas.height);
 
 geometry.setPos(new Vec2(100, 100));
 geometry.scale(2, 2);
+geometry.rotate(Math.PI / 4);
 animateScene();
 
 setInterval(() => {
@@ -69,7 +70,7 @@ function animateScene() {
   geometry.translate(new Vec2(1, 0));
 
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
-  gl.uniformMatrix3fv(uPos, false, geometry.getPos().arr());
+  gl.uniformMatrix3fv(uPos, false, geometry.getPosMatrix().arr());
   gl.uniform4fv(uGlobalColor, geometry.getColor().arr());
 
   aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");

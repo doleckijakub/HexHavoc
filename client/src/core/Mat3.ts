@@ -60,6 +60,29 @@ export class Mat3 {
     return this;
   }
 
+  rotate(angle: number): Mat3 {
+    const e = this.elements;
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+
+    const m0 = e[0] * c + e[3] * s;
+    const m1 = e[1] * c + e[4] * s;
+    const m2 = e[2] * c + e[5] * s;
+
+    const m3 = e[0] * -s + e[3] * c;
+    const m4 = e[1] * -s + e[4] * c;
+    const m5 = e[2] * -s + e[5] * c;
+
+    e[0] = m0;
+    e[1] = m1;
+    e[2] = m2;
+    e[3] = m3;
+    e[4] = m4;
+    e[5] = m5;
+
+    return this;
+  }
+
   arr(): Float32Array {
     return this.elements;
   }
