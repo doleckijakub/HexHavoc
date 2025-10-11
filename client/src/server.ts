@@ -11,5 +11,12 @@ Bun.serve({
         headers: { 'Content-Type': 'text/plain' }
       });
     },
+    '/textures/:texture': async (req) => {
+      const { texture } = req.params;
+      const textureFile = Bun.file(`./src/textures/${texture}`);
+      return new Response(await textureFile.arrayBuffer(), {
+        headers: { 'Content-Type': textureFile.type }
+      });
+    },
   }
 })

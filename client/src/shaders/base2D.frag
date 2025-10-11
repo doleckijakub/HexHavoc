@@ -2,9 +2,17 @@
     precision highp float;
   #endif
 
-  uniform vec4 uGlobalColor;
+  uniform vec4 uColor;
+  uniform sampler2D uTexture;
+  uniform bool uUseTexture;
+
+  varying vec2 vTexCoord;
 
   void main() {
-    gl_FragColor = uGlobalColor;
+    if (uUseTexture) {
+      gl_FragColor = texture2D(uTexture, vTexCoord) * uColor;
+    } else {
+      gl_FragColor = uColor;
+    }
   }
   

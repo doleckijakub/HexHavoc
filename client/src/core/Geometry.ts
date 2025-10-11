@@ -1,18 +1,24 @@
-import { Mat3 } from "@core/Mat3";
-import { Vec2 } from "@core/Vec2";
-import { Color } from "./Color";
+import { Mat3, Vec2 } from "@core";
 
 export class Geometry {
   private vertices: Float32Array;
+  private texCoords: Float32Array;
   private pos = new Mat3();
-  private color = new Color(0, 0, 0, 1);
   private vertexBuffer: WebGLBuffer;
+  private texCoordBuffer: WebGLBuffer;
 
   constructor(
     private readonly gl: WebGLRenderingContext,
     vertices: Vec2[],
+    texCoords?: Vec2[],
   ) {
     this.vertices = new Float32Array(Vec2.flat(vertices));
+    
+    if (!texCoords) {
+      texCoords = vertices.map(() => new Vec2(0, 0));
+    }
+    this.texCoords = new Float32Array(Vec2.flat(texCoords));
+    
     this.initBuffers();
   }
 
@@ -26,10 +32,20 @@ export class Geometry {
       this.vertices,
       this.gl.STATIC_DRAW
     );
+
+    this.texCoordBuffer = this.gl.createBuffer();
+    if (!this.texCoordBuffer) throw new Error("Failed to create texture coordinate buffer");
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texCoordBuffer);
+    this.gl.bufferData(
+      this.gl.ARRAY_BUFFER,
+      this.texCoords,
+      this.gl.STATIC_DRAW
+    );
   }
 
-  verticesLength() {
-    return this.vertices.length;
+  verticesCount() {
+    return this.vertices.length / 2;
   }
 
   private readVec2(args: [Vec2] | [number, number]): Vec2 {
@@ -74,11 +90,16 @@ export class Geometry {
     return this.pos;
   }
 
-  getColor() {
-    return this.color;
+  getVertexBuffer() {
+    return this.vertexBuffer;
   }
 
-  setColor(color: Color) {
-    this.color = color;
+  getTexCoordBuffer() {
+    return this.texCoordBuffer;
+  }
+
+  destroy(): void {
+    this.gl.deleteBuffer(this.vertexBuffer);
+    this.gl.deleteBuffer(this.texCoordBuffer);
   }
 }
