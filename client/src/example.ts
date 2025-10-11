@@ -1,5 +1,6 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
 import { Color, Vec2, Mat3, Geometry, Material, Texture } from "@core";
+import { Transform } from "./core/Transform";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
@@ -45,13 +46,14 @@ const geometry = new Geometry(gl, [
 const tx = await Texture.load(gl, "/textures/Tux.png");
 const material = new Material(gl, shaderProgram);
 material.setTexture(tx);
+const transform = new Transform();
 
 const worldMatrix = new Mat3();
 worldMatrix.translate(-1, 1).scale(2 / glCanvas.width, -2 / glCanvas.height);
 
-geometry.setPos(new Vec2(100, 100));
-geometry.scale(4, 4);
-geometry.rotate(Math.PI / 4);
+transform.setPos(new Vec2(100, 100));
+transform.scale(4, 4);
+transform.rotate(Math.PI / 4);
 
 setInterval(() => {
   material.setColor(Color.random());
@@ -72,11 +74,11 @@ function animateScene() {
   const uColor = gl.getUniformLocation(shaderProgram, "uColor");
   const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
-  geometry.translate(new Vec2(1, 0));
-  geometry.rotate(Math.PI / 80);
+  transform.translate(new Vec2(1, 0));
+  transform.rotate(Math.PI / 80);
 
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
-  gl.uniformMatrix3fv(uPos, false, geometry.getPosMatrix().arr());
+  gl.uniformMatrix3fv(uPos, false, transform.getPosMatrix().arr());
   gl.uniform4fv(uColor, material.getColor().arr());
 
   const aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
@@ -91,8 +93,8 @@ function animateScene() {
 
   gl.drawArrays(gl.TRIANGLES, 0, geometry.verticesCount());
 
-  if (geometry.getPos().x > glCanvas.width) {
-    geometry.setPos(new Vec2(0, 100));
+  if (transform.getPos().x > glCanvas.width) {
+    transform.setPos(new Vec2(0, 100));
   }
 
   requestAnimationFrame((currentTime) => {
