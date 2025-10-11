@@ -4,7 +4,7 @@ import type { TerrainChunk } from '@type/game';
 
 export interface EntityMovePacket {
     packet_type: 'entity_move'
-    id: number,
+    id: string,
     new_position: Vec2,
 }
 
