@@ -18,8 +18,8 @@ export interface EntityLoadPacket {
     entity: Entity,
 }
 
-export interface EntityUnloadPacket {
-    packet_type: 'entity_unload',
+export interface EntityDestroyedPacket {
+    packet_type: 'entity_destroyed',
     id: string,
 }
 
