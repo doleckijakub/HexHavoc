@@ -1,7 +1,7 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
@@ -38,6 +38,23 @@ const HALF_WORLD_SIZE: i32 = WORLD_SIZE / 2;
 const VIEW_RANGE: f32 = 20.0;
 
 const CHUNK_SIZE: i32 = 8;
+
+fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
+    let mut coords = vec![];
+    
+    let start_y = ((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
+    let end_y   = ((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+    let start_x = ((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
+    let end_x   = ((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+
+    for y in start_y..=end_y {
+        for x in start_x..=end_x {
+            coords.push((x, y));
+        }
+    }
+
+    coords
+}
 
 impl Game {
     pub fn log<S: AsRef<str>>(&self, message: S) {
@@ -164,21 +181,13 @@ impl Client {
                     position,
                 });
 
-                {
-                    let start_y = ((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
-                    let end_y   = ((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
-                    let start_x = ((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
-                    let end_x   = ((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+                let chunks = get_chunk_coords_visible_from(position)
+                    .into_iter()
+                    .map(move |(x, y)| game.get_chunk(x, y));
 
-                    for cy in start_y..=end_y {
-                        for cx in start_x..=end_x {
-                            let packet = Packet::TerrainChunk {
-                                chunk: game.get_chunk(cx, cy),
-                            };
-
-                            self.send(packet).await;
-                        }
-                    }
+                for chunk in chunks {
+                    let packet = Packet::TerrainChunk { chunk };
+                    self.send(packet).await;
                 }
 
                 let res = Packet::PlayerRegistered {
@@ -189,6 +198,54 @@ impl Client {
                 self.send(res).await;
 
                 self.log("Registered");
+            }
+
+            Packet::EntityMove { id, new_position } => {
+                if id != self.id {
+                    return; // TODO: ponder
+                }
+
+                // TODO: check diff for cheating
+
+                // send chunk update
+
+                let mut chunk_coords = get_chunk_coords_visible_from(new_position);
+                let prev_chunk_coords = get_chunk_coords_visible_from(self.player_data.clone().unwrap().position);
+
+                let prev_chunk_coords: HashSet<_> = prev_chunk_coords.into_iter().collect();
+
+                chunk_coords.retain(|x| !prev_chunk_coords.contains(x));
+
+                let game = state.games.get(&self.player_data.clone().unwrap().game_id).unwrap();
+
+                let chunks = chunk_coords
+                    .into_iter()
+                    .map(move |(x, y)| game.get_chunk(x, y));
+
+                for chunk in chunks {
+                    let packet = Packet::TerrainChunk { chunk };
+                    self.send(packet).await;
+                }
+
+                // update position
+
+                if let Some(ref mut player_data) = self.player_data {
+                    player_data.position = new_position;
+                }
+
+                // send position update to others
+
+                let mut others = state
+                    .clients
+                    .clone()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+
+                others.retain(|(_, c)| c.id != self.id);
+
+                for (_, mut client) in others {
+                    client.send(Packet::EntityMove { id, new_position }).await;
+                }
             }
 
             other => {

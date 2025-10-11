@@ -36,4 +36,10 @@ pub enum Packet {
     TerrainChunk {
         chunk: TerrainChunk
     },
+
+    #[serde(rename = "entity_move")]
+    EntityMove {
+        id: Uuid,
+        new_position: Vec2,
+    },
 }
