@@ -1,5 +1,5 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
-import { Color, Vec2, Mat3, Material, Texture } from "@core";
+import { Color, Vec2, Mat3, Material, Texture, GeometryFactory } from "@core";
 import { Sprite } from "./core/Sprite";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
@@ -28,12 +28,19 @@ const shaderProgram = ShaderProgramFactory.create(gl, [
   shaders.get("base2D.frag")!,
 ]);
 
+const geometryFactory = new GeometryFactory(gl);
+
+const solidMaterial = new Material(gl, shaderProgram);
+solidMaterial.setColor(Color.rgb(255, 0, 0));
 // prepare materials:
 const tuxTexture = await Texture.load(gl, "/textures/Tux.png");
 const tuxMaterial = new Material(gl, shaderProgram);
 tuxMaterial.setTexture(tuxTexture);
 
-const sprite = new Sprite(gl, 60, 60, tuxMaterial);
+const rect = geometryFactory.rect(60, 60);
+const circle = geometryFactory.circle(30, 30);
+
+const sprite = new Sprite(gl, rect, tuxMaterial);
 
 const worldMatrix = new Mat3();
 worldMatrix.translate(-1, 1).scale(2 / glCanvas.width, -2 / glCanvas.height);
@@ -43,7 +50,7 @@ sprite.transform.scale(4, 4);
 sprite.transform.rotate(Math.PI / 4);
 
 setInterval(() => {
-  sprite.material.setColor(Color.random());
+  //sprite.material.setColor(Color.random());
 }, 150);
 
 animateScene();
