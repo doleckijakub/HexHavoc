@@ -26,6 +26,9 @@ export class Texture {
 
   static async load(gl: WebGLRenderingContext, url: string): Promise<Texture> {
     const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Failed to load texture from '${url}' [${res.statusText}]`);
+    }
     const blob = await res.blob();
     const imageBitmap = await createImageBitmap(blob);
     return new Texture(gl, imageBitmap);

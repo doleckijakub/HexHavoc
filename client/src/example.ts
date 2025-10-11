@@ -1,6 +1,6 @@
 import { ShaderModule, ShaderProgramFactory } from "@render";
-import { Color, Vec2, Mat3, Geometry, Material, Texture } from "@core";
-import { Transform } from "./core/Transform";
+import { Color, Vec2, Mat3, Material, Texture } from "@core";
+import { Sprite } from "./core/Sprite";
 
 const glCanvas = document.getElementById("gl-canvas") as HTMLCanvasElement;
 if (!glCanvas) throw new Error("No canvas with id 'gl-canvas' found");
@@ -28,35 +28,22 @@ const shaderProgram = ShaderProgramFactory.create(gl, [
   shaders.get("base2D.frag")!,
 ]);
 
-const geometry = new Geometry(gl, [
-  new Vec2(0, 0), // A
-  new Vec2(50, 0), // B
-  new Vec2(0, 50), // C
-  new Vec2(0, 50), // C
-  new Vec2(50, 0), // B
-  new Vec2(50, 50), // D
-], [
-  new Vec2(0, 0), // A - bottom-left
-  new Vec2(1, 0), // B - bottom-right
-  new Vec2(0, 1), // C - top-left
-  new Vec2(0, 1), // C - top-left
-  new Vec2(1, 0), // B - bottom-right
-  new Vec2(1, 1), // D - top-right
-]);
-const tx = await Texture.load(gl, "/textures/Tux.png");
-const material = new Material(gl, shaderProgram);
-material.setTexture(tx);
-const transform = new Transform();
+// prepare materials:
+const tuxTexture = await Texture.load(gl, "/textures/Tux.png");
+const tuxMaterial = new Material(gl, shaderProgram);
+tuxMaterial.setTexture(tuxTexture);
+
+const sprite = new Sprite(gl, 60, 60, tuxMaterial);
 
 const worldMatrix = new Mat3();
 worldMatrix.translate(-1, 1).scale(2 / glCanvas.width, -2 / glCanvas.height);
 
-transform.setPos(new Vec2(100, 100));
-transform.scale(4, 4);
-transform.rotate(Math.PI / 4);
+sprite.transform.setPos(new Vec2(200, 200));
+sprite.transform.scale(4, 4);
+sprite.transform.rotate(Math.PI / 4);
 
 setInterval(() => {
-  material.setColor(Color.random());
+  sprite.material.setColor(Color.random());
 }, 150);
 
 animateScene();
@@ -68,33 +55,33 @@ function animateScene() {
   gl.clearColor(0.9, 1, 1, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  material.bind();
+  sprite.material.bind();
 
   const uPos = gl.getUniformLocation(shaderProgram, "uPos");
   const uColor = gl.getUniformLocation(shaderProgram, "uColor");
   const uWorldMatrix = gl.getUniformLocation(shaderProgram, "uWorldMatrix");
 
-  transform.translate(new Vec2(1, 0));
-  transform.rotate(Math.PI / 80);
+  sprite.transform.translate(new Vec2(1, 0));
+  sprite.transform.rotate(Math.PI / 80);
 
   gl.uniformMatrix3fv(uWorldMatrix, false, worldMatrix.arr());
-  gl.uniformMatrix3fv(uPos, false, transform.getPosMatrix().arr());
-  gl.uniform4fv(uColor, material.getColor().arr());
+  gl.uniformMatrix3fv(uPos, false, sprite.transform.getPosMatrix().arr());
+  gl.uniform4fv(uColor, sprite.material.getColor().arr());
 
   const aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-  gl.bindBuffer(gl.ARRAY_BUFFER, geometry.getVertexBuffer());
+  gl.bindBuffer(gl.ARRAY_BUFFER, sprite.geometry.getVertexBuffer());
   gl.enableVertexAttribArray(aVertexPosition);
   gl.vertexAttribPointer(aVertexPosition, 2, gl.FLOAT, false, 0, 0);
 
   const aTexCoord = gl.getAttribLocation(shaderProgram, "aTexCoord");
-  gl.bindBuffer(gl.ARRAY_BUFFER, geometry.getTexCoordBuffer());
+  gl.bindBuffer(gl.ARRAY_BUFFER, sprite.geometry.getTexCoordBuffer());
   gl.enableVertexAttribArray(aTexCoord);
   gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
 
-  gl.drawArrays(gl.TRIANGLES, 0, geometry.verticesCount());
+  gl.drawArrays(gl.TRIANGLES, 0, sprite.geometry.verticesCount());
 
-  if (transform.getPos().x > glCanvas.width) {
-    transform.setPos(new Vec2(0, 100));
+  if (sprite.transform.getPos().x > glCanvas.width) {
+    sprite.transform.setPos(new Vec2(0, 100));
   }
 
   requestAnimationFrame((currentTime) => {
