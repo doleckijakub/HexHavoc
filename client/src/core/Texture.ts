@@ -1,5 +1,7 @@
 export class Texture {
   private texture: WebGLTexture;
+  public readonly width: number;
+  public readonly height: number;
 
   constructor(
     private readonly gl: WebGLRenderingContext,
@@ -22,6 +24,9 @@ export class Texture {
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
     this.gl.bindTexture(this.gl.TEXTURE_2D, null);
+
+    this.width = img.width;
+    this.height = img.height;
   }
 
   static async load(gl: WebGLRenderingContext, url: string): Promise<Texture> {
