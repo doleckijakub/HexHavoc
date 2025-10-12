@@ -1,6 +1,6 @@
 import type { TColor } from "@type";
 import type { TVec2Args } from '@core';
-import { Color, Geometry, Material, Transform, Vec2, readVec2 } from '@core';
+import { Color, Geometry, Material, Vec2, readVec2 } from '@core';
 
 export class Sprite {
   public geometry: Geometry;

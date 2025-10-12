@@ -35,6 +35,6 @@ export interface PlayerRegisteredPacket {
 }
 
 export type Packet = 
-    EntityMovePacket | EntityLoadPacket | EntityUnloadPacket |
+    EntityMovePacket | EntityLoadPacket | EntityDestroyedPacket |
     TerrainChunkPacket |
     PlayerRegisterPacket | PlayerRegisteredPacket;

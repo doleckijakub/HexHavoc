@@ -10,6 +10,10 @@ import {
 } from "@core";
 import { Sprite } from "./core/Sprite";
 
+import base2DVert from "./shaders/base2D.vert?raw";
+import base2DFrag from "./shaders/base2D.frag?raw";
+import slimeTextureAsset from "./textures/slime.png";
+
 class RenderableObject {
   public readonly transform: Transform;
 
@@ -26,12 +30,10 @@ if (!gl) throw new Error("WebGL not supported");
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-const shadersNames = ["base2D.vert", "base2D.frag"];
-
-const shadersModules = await Promise.all(
-  shadersNames.map((name) => ShaderModule.load(gl, name))
-);
-
+const shadersModules = [
+  new ShaderModule("base2D.vert", base2DVert, gl.VERTEX_SHADER),
+  new ShaderModule("base2D.frag", base2DFrag, gl.FRAGMENT_SHADER),
+];
 const shaders: Map<string, WebGLShader> = new Map();
 
 for (const module of shadersModules) {
@@ -50,7 +52,7 @@ const rect = geometryFactory.rect(64, 64);
 const solidMaterial = new Material(gl, shaderProgram);
 solidMaterial.setColor(Color.rgb(255, 0, 0));
 // prepare materials:
-const slimeTexture = await Texture.load(gl, "/textures/slime.png");
+const slimeTexture = await Texture.load(gl, slimeTextureAsset);
 const slimeMaterial = new Material(gl, shaderProgram);
 slimeMaterial.setTexture(slimeTexture);
 
