@@ -8,4 +8,8 @@ cd server
 cargo build --release
 cd -
 
+cd client
+bun run build
+cd -
+
 exec server/target/release/hexhavoc-server

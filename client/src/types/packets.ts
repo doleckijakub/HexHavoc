@@ -25,13 +25,14 @@ export interface EntityUnloadPacket {
 
 export interface PlayerRegisterPacket {
     packet_type: 'player_register';
-    game_id: string;
+    game_name: string;
     username: string;
 }
 
 export interface PlayerRegisteredPacket {
     packet_type: 'player_registered',
     id: string,
+    position: Vec2,
 }
 
 export type Packet = 

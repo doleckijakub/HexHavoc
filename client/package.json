@@ -1,16 +1,14 @@
 {
-  "dependencies": {},
+  "name": "client",
   "devDependencies": {
     "@types/bun": "latest"
   },
-  "scripts": {
-    "dev": "bun run ./src/server.ts",
-    "build": "bun build ./index.html --minify --outdir=dist"
-  },
-  "name": "client",
-  "module": "index.ts",
-  "type": "module",
   "peerDependencies": {
     "typescript": "^5.0.0"
-  }
+  },
+  "scripts": {
+    "dev": "bun run ./src/server.ts",
+    "build": "bun build ./index.html --minify --outdir=dist && bun build ./game.html --minify --outdir=dist"
+  },
+  "type": "module"
 }

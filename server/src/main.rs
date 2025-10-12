@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
             .service(endpoints::game::game)
             .service(endpoints::ws::ws)
             .service(
-                Files::new("/", "client/public")
+                Files::new("/", "client/dist")
                     .prefer_utf8(true)
                     .index_file("index.html"),
             )

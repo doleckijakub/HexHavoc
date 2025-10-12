@@ -22,7 +22,7 @@ impl ErrorPacket {
 pub enum Packet {
     #[serde(rename = "player_register")]
     PlayerRegister {
-        game_id: Uuid,
+        game_name: String,
         username: String
     },
 

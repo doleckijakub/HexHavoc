@@ -1,5 +1,6 @@
 export * from './Entity';
 export * from './Vec2';
+export * from './Vec4';
 export * from './Color';
 export * from './Mat3';
 export * from './Geometry';

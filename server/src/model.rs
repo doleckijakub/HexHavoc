@@ -153,15 +153,19 @@ impl Client {
 
     pub async fn recv(&mut self, packet: Packet, state: &mut ServerState) {
         match packet {
-            Packet::PlayerRegister { game_id, username } => {
+            Packet::PlayerRegister { game_name, username } => {
                 if self.player_data.is_some() {
                     self.elog("Tried to reregister");
                     return;
                 }
 
-                if state.games.get(&game_id).is_none() {
-                    self.send_error("game-not-found").await;
-                }
+                let game_id = *match state.game_ids_by_name.get(&game_name) {
+                    Some(id) => id,
+                    None => {
+                        self.send_error("game-not-found").await;
+                        return;
+                    }
+                };
 
                 for (_, client) in state.clients.iter() {
                     if let Some(player_data) = &client.player_data {

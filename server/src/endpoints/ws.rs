@@ -10,7 +10,7 @@ use crate::packet::Packet;
 async fn ws(
     req: HttpRequest,
     stream: web::Payload,
-    mut state: web::Data<SharedState>,
+    state: web::Data<SharedState>,
 ) -> Result<HttpResponse, Error> {
     let (res, session, mut stream) = actix_ws::handle(&req, stream)?;
 

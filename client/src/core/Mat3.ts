@@ -19,8 +19,15 @@ export class Mat3 {
     e[6] = 0;
     e[7] = 0;
     e[8] = 1;
-
     return this;
+  }
+
+  static fromValues(e: number[]): Mat3 {
+    let self = new Mat3();
+    for (let i = 0; i < 9; i++) {
+      self.elements[i] = e[i];
+    }
+    return self;
   }
 
   translate(tx: number, ty: number): Mat3;
@@ -81,6 +88,35 @@ export class Mat3 {
     e[5] = m5;
 
     return this;
+  }
+
+  multiply(other: Mat3): Mat3 {
+    const out = new Mat3();
+    for (let r = 0; r < 3; r++){
+      for (let c = 0; c < 3 ; c++){
+        let sum = 0;
+        for (let k = 0; k < 3; k++)
+          sum += this.elements[r * 3 + k] * other.elements[k * 3 + c];
+        out.elements[r * 3 + c] = sum;
+      }
+    }
+    return out;
+  }
+
+  static ortho(viewWidth: number, viewHeight: number, center: Vec2, scale = 1): Mat3 {
+    const sx = 2 / viewWidth * scale;
+    const sy = 2 / viewHeight * scale;
+
+    const tx = -center.x * sx;
+    const ty = -center.y * sy;
+
+    const mat = Mat3.fromValues([
+        sx,  0,  0,
+        0,   sy, 0,
+        tx,  ty, 1,
+    ]);
+
+    return mat;
   }
 
   arr(): Float32Array {
