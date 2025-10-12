@@ -1,22 +1,28 @@
 # HexHavoc client
 
-Bun **v1.2.0+** is required for running HTML files.
+Node.js 20+ and pnpm is required.
+
+## Install pnpm
+
+```bash
+npm install -g pnpm
+```
 
 ## To install dependencies:
 
 ```bash
-bun install
+pnpm install
 ```
 
 ## Running development server:
 
 ```bash
-bun run dev
+pnpm dev
 ```
 
 ## Bundling for production
 ```bash
-bun run build
+pnpm build
 ```
 
-> It will output HTML and JS in `dist/` directory
+> It will output HTML, JS and bundled assets in `dist/` directory
