@@ -1,9 +1,11 @@
-use actix_web::{get, web, HttpResponse, Responder, Result};
+use actix_files::NamedFile;
+use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Result};
 
 use crate::model::SharedState;
 
 #[get("/game/{name}")]
 async fn game(
+    req: HttpRequest,
     name: web::Path<String>,
     state: web::Data<SharedState>,
 ) -> Result<impl Responder> {
@@ -11,13 +13,9 @@ async fn game(
     let state = state.lock().unwrap();
 
     if state.game_ids_by_name.get(&name).is_some() {
-        let mut html = std::fs::read_to_string("./client/dist/game.html")?;
+        let file = NamedFile::open_async("./client/dist/game.html").await?;
         
-        html = html.replace(r#"src="./game-"#, r#"src="/game-"#);
-
-        Ok(HttpResponse::Ok()
-            .content_type("text/html; charset=utf-8")
-            .body(html))
+        Ok(file.into_response(&req))
     } else {
         Ok(HttpResponse::SeeOther()
             .append_header((
