@@ -67,10 +67,7 @@ class Game {
             });
         };
 
-        ws.onmessage = ev => {
-            console.log(ev.data);
-            this.recv(JSON.parse(ev.data));
-        };
+        ws.onmessage = ev => this.recv(JSON.parse(ev.data));
 
         ws.onclose = console.warn;
         ws.onerror = console.error;
@@ -170,6 +167,16 @@ class Game {
                 player.position.x + dx * dt * speed,
                 player.position.y + dy * dt * speed
             );
+
+            for (let loc of this.terrain.keys()) {
+                const [scx, scy] = loc.split(':');
+                const [cx, cy] = [Number.parseInt(scx), Number.parseInt(scy)];
+                const [x, y] = [cx * 8, cy * 8];
+
+                if (Math.hypot(x - player.position.x, y - player.position.y) > 100) {
+                    this.terrain.delete(loc);
+                }
+            }
 
             this.send({
                 packet_type: 'entity_move',
