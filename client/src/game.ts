@@ -119,7 +119,9 @@ class Game {
     }
 
     private last = performance.now();
-    private fpsCounter = document.getElementById('fps') as HTMLSpanElement;
+    
+    private fpsSpan = document.getElementById('fps') as HTMLSpanElement;
+    private positionSpan = document.getElementById('position') as HTMLSpanElement;
 
     private update(now: number) {
         if (!this.playerId) return;
@@ -130,7 +132,8 @@ class Game {
         const dt = (now - this.last) / 1000;
         this.last = now;
 
-        this.fpsCounter.innerText = `FPS: ${Math.round(1 / dt)}`;
+        this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
+        this.positionSpan.innerText = `x: ${Math.round(player.pos.x)} y: ${Math.round(player.pos.y)}`;
 
         const speed = this.keys["ShiftLeft"] ? 50 : 5;
 
