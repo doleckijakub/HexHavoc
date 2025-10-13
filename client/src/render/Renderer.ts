@@ -7,9 +7,20 @@ interface TerrainRenderer {
     offsets: Float32Array;
     scales: Float32Array;
     colors: Float32Array;
+
+    colorLeft: Float32Array;
+    colorRight: Float32Array;
+    colorUp: Float32Array;
+    colorDown: Float32Array;
+
     offsetBuffer: WebGLBuffer;
     scaleBuffer: WebGLBuffer;
     colorBuffer: WebGLBuffer;
+
+    colorLeftBuffer: WebGLBuffer;
+    colorRightBuffer: WebGLBuffer;
+    colorUpBuffer: WebGLBuffer;
+    colorDownBuffer: WebGLBuffer;
 }
 
 const TILE_COLORS: Record<TerrainTileType, TVec4> = {
@@ -155,6 +166,11 @@ export class Renderer {
         const scales  = new Float32Array(maxInstances * 2);
         const colors  = new Float32Array(maxInstances * 4);
 
+        const colorLeft   = new Float32Array(maxInstances * 4);
+        const colorRight  = new Float32Array(maxInstances * 4);
+        const colorUp     = new Float32Array(maxInstances * 4);
+        const colorDown   = new Float32Array(maxInstances * 4);
+
         const vao = gl.createVertexArray()!;
         gl.bindVertexArray(vao);
 
@@ -189,9 +205,61 @@ export class Renderer {
         gl.vertexAttribPointer(locColor, 4, gl.FLOAT, false, 0, 0);
         gl.vertexAttribDivisor(locColor, 1);
 
+        const colorLeftBuffer = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorLeftBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4 * 4, gl.DYNAMIC_DRAW);
+        const locLeft = this.currentShader.getAttribLocation('a_colorLeft');
+        gl.enableVertexAttribArray(locLeft);
+        gl.vertexAttribPointer(locLeft, 4, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(locLeft, 1);
+
+        const colorRightBuffer = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorRightBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4 * 4, gl.DYNAMIC_DRAW);
+        const locRight = this.currentShader.getAttribLocation('a_colorRight');
+        gl.enableVertexAttribArray(locRight);
+        gl.vertexAttribPointer(locRight, 4, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(locRight, 1);
+
+        const colorUpBuffer = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorUpBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4 * 4, gl.DYNAMIC_DRAW);
+        const locUp = this.currentShader.getAttribLocation('a_colorUp');
+        gl.enableVertexAttribArray(locUp);
+        gl.vertexAttribPointer(locUp, 4, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(locUp, 1);
+
+        const colorDownBuffer = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorDownBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4 * 4, gl.DYNAMIC_DRAW);
+        const locDown = this.currentShader.getAttribLocation('a_colorDown');
+        gl.enableVertexAttribArray(locDown);
+        gl.vertexAttribPointer(locDown, 4, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(locDown, 1);
+
         gl.bindVertexArray(null);
 
-        return { vao, offsets, scales, colors, offsetBuffer, scaleBuffer, colorBuffer };
+        return {
+            vao,
+            
+            offsets,
+            scales,
+            colors,
+
+            colorLeft,
+            colorRight,
+            colorUp,
+            colorDown,
+
+            colorLeftBuffer,
+            colorRightBuffer,
+            colorUpBuffer,
+            colorDownBuffer,
+
+            offsetBuffer,
+            scaleBuffer,
+            colorBuffer
+        };
     }
 
     initTerrainRenderer() {
@@ -207,20 +275,63 @@ export class Renderer {
         const CHUNK_SIZE = 8;
 
         let I = 0;
+        // for (const chunk of chunks) {
+        //     for (let i = 0; i < chunk.contents.length; i++, I++) {
+        //         const tileType = chunk.contents[i];
+
+        //         const localX = i % CHUNK_SIZE;
+        //         const localY = Math.floor(i / CHUNK_SIZE);
+
+        //         tr.offsets[I * 2 + 0] = chunk.position.x * CHUNK_SIZE + localX;
+        //         tr.offsets[I * 2 + 1] = chunk.position.y * CHUNK_SIZE + localY;
+
+        //         tr.scales[I * 2 + 0] = TILE_SIZE;
+        //         tr.scales[I * 2 + 1] = TILE_SIZE;
+
+        //         tr.colors.set(TILE_COLORS[tileType], I * 4);
+        //     }
+        // }
+
+        function getTile(x: number, y: number): TerrainTileType | null {
+            let cloc = { x: Math.floor(x / CHUNK_SIZE), y: Math.floor(y / CHUNK_SIZE) };
+
+            for (const chunk of chunks) {
+                if (chunk.position.x == cloc.x && chunk.position.y == cloc.y) {
+                    const [ lx, ly ] = [ x % CHUNK_SIZE, y % CHUNK_SIZE ];
+                    return chunk.contents[lx + ly * CHUNK_SIZE];
+                }
+            }
+
+            return null;
+        }
+
         for (const chunk of chunks) {
             for (let i = 0; i < chunk.contents.length; i++, I++) {
                 const tileType = chunk.contents[i];
-
                 const localX = i % CHUNK_SIZE;
                 const localY = Math.floor(i / CHUNK_SIZE);
 
-                tr.offsets[I * 2 + 0] = chunk.position.x * CHUNK_SIZE + localX;
-                tr.offsets[I * 2 + 1] = chunk.position.y * CHUNK_SIZE + localY;
+                const worldX = chunk.position.x * CHUNK_SIZE + localX;
+                const worldY = chunk.position.y * CHUNK_SIZE + localY;
+
+                tr.offsets[I * 2 + 0] = worldX;
+                tr.offsets[I * 2 + 1] = worldY;
 
                 tr.scales[I * 2 + 0] = TILE_SIZE;
                 tr.scales[I * 2 + 1] = TILE_SIZE;
 
-                tr.colors.set(TILE_COLORS[tileType], I * 4);
+                const color = TILE_COLORS[tileType];
+                tr.colors.set(color, I * 4);
+
+                const leftType: TerrainTileType  = getTile(worldX - 1, worldY) ?? tileType;
+                const rightType: TerrainTileType = getTile(worldX + 1, worldY) ?? tileType;
+                const upType: TerrainTileType    = getTile(worldX, worldY + 1) ?? tileType;
+                const downType: TerrainTileType  = getTile(worldX, worldY - 1) ?? tileType;
+
+                tr.colorLeft.set(TILE_COLORS[leftType], I * 4);
+                tr.colorRight.set(TILE_COLORS[rightType], I * 4);
+                tr.colorUp.set(TILE_COLORS[upType], I * 4);
+                tr.colorDown.set(TILE_COLORS[downType], I * 4);
             }
         }
 
@@ -232,6 +343,15 @@ export class Renderer {
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.scales.subarray(0, instanceCount * 2));
         gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorBuffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colors.subarray(0, instanceCount * 4));
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorLeftBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colorLeft.subarray(0, instanceCount * 4));
+        gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorRightBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colorRight.subarray(0, instanceCount * 4));
+        gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorUpBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colorUp.subarray(0, instanceCount * 4));
+        gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorDownBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colorDown.subarray(0, instanceCount * 4));
 
         const vp = Mat3.ortho(this.canvas.width, this.canvas.height, this.camera, this.scale);
         gl.uniformMatrix3fv(this.currentShader.getUniformLocation("u_vp"), false, vp.arr());

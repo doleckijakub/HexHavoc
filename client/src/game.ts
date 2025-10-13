@@ -20,9 +20,19 @@ attribute vec2 a_offset;
 attribute vec2 a_scale;
 attribute vec4 a_color;
 
+attribute vec4 a_colorLeft;
+attribute vec4 a_colorRight;
+attribute vec4 a_colorUp;
+attribute vec4 a_colorDown;
+
 uniform mat3 u_vp;
 
 varying vec4 v_color;
+varying vec4 v_left;
+varying vec4 v_right;
+varying vec4 v_up;
+varying vec4 v_down;
+varying vec2 v_uv;
 
 void main() {
   vec2 world = a_unitPos * a_scale + a_offset;
@@ -30,15 +40,60 @@ void main() {
 
   gl_Position = vec4(clip.xy, 0.0, 1.0);
   v_color = a_color;
+  v_left = a_colorLeft;
+  v_right = a_colorRight;
+  v_up = a_colorUp;
+  v_down = a_colorDown;
+
+  v_uv = a_unitPos + 0.5;
 }
 `, `
 precision mediump float;
 
 varying vec4 v_color;
+varying vec4 v_left;
+varying vec4 v_right;
+varying vec4 v_up;
+varying vec4 v_down;
+varying vec2 v_uv;
+
+const vec4 COLOR_WATER = vec4(25.0, 50.0, 150.0, 255.0) / 255.0;
+const vec4 COLOR_DEEP_WATER = vec4(0.0, 0.0, 70.0, 255.0) / 255.0;
+
+const vec4 COLOR_SIDE_0 = vec4(79.0, 51.0, 9.0, 255.0) / 255.0;
+const vec4 COLOR_SIDE_1 = vec4(110.0, 71.0, 14.0, 255.0) / 255.0;
 
 void main() {
-  gl_FragColor = v_color;
+  float border = 1.0 / 16.0;
+
+  float x = v_uv.x;
+  float y = v_uv.y;
+
+  vec4 color = v_color;
+
+  if (distance(v_left, COLOR_DEEP_WATER) < 0.1 || distance(v_right, COLOR_DEEP_WATER) < 0.1 || distance(v_up, COLOR_DEEP_WATER) < 0.1 || distance(v_down, COLOR_DEEP_WATER) < 0.1) {
+    color = (v_color + v_left + v_right + v_up + v_down) / 5.0;
+  }
+
+  if (distance(v_color, COLOR_WATER) < 0.1 && v_color != v_up && distance(v_up, COLOR_DEEP_WATER) > 0.1) {
+    vec4 color_side = x < 0.25 ? COLOR_SIDE_0 : x < 0.5 ? COLOR_SIDE_1 : x < 0.75 ? COLOR_SIDE_0 : COLOR_SIDE_1;
+    color_side = (color_side + v_up) / 2.0;
+    gl_FragColor = y > 1.0 - border ? color_side / 2.0 : y > 0.35 ? color_side : y > 0.35 - border ? vec4(vec3(0.8), 1.0) : v_color;
+    return;
+  }
+
+  bool drawBorder = false;
+
+  if (distance(v_color, COLOR_WATER) > 0.1) {
+    if (x < border && v_color != v_left) drawBorder = true;
+    if (x > 1.0 - border && v_color != v_right) drawBorder = true;
+    if (y > 1.0 - border && v_color != v_up) drawBorder = true;
+    if (y < border && v_color != v_down) drawBorder = true;
+  }
+
+  gl_FragColor = drawBorder ? color / 1.5 : color;
 }
+
 `);
 
 const terrainShader = shaderManager.get("terrain");
