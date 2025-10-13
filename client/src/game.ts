@@ -71,11 +71,18 @@ void main() {
 
   vec4 color = v_color;
 
-  if (distance(v_left, COLOR_DEEP_WATER) < 0.1 || distance(v_right, COLOR_DEEP_WATER) < 0.1 || distance(v_up, COLOR_DEEP_WATER) < 0.1 || distance(v_down, COLOR_DEEP_WATER) < 0.1) {
-    color = (v_color + v_left + v_right + v_up + v_down) / 5.0;
+  {
+    float count = 1.0;
+
+    if (distance(v_left, COLOR_DEEP_WATER) < 0.01)  { count += 1.0; color += v_left; }
+    if (distance(v_right, COLOR_DEEP_WATER) < 0.01) { count += 1.0; color += v_right; }
+    if (distance(v_up, COLOR_DEEP_WATER) < 0.01)    { count += 1.0; color += v_up; }
+    if (distance(v_down, COLOR_DEEP_WATER) < 0.01)  { count += 1.0; color += v_down; }
+
+    color /= count;
   }
 
-  if (distance(v_color, COLOR_WATER) < 0.1 && v_color != v_up && distance(v_up, COLOR_DEEP_WATER) > 0.1) {
+  if (distance(v_color, COLOR_WATER) < 0.01 && v_color != v_up && distance(v_up, COLOR_DEEP_WATER) > 0.1) {
     vec4 color_side = x < 0.25 ? COLOR_SIDE_0 : x < 0.5 ? COLOR_SIDE_1 : x < 0.75 ? COLOR_SIDE_0 : COLOR_SIDE_1;
     color_side = (color_side + v_up) / 2.0;
     gl_FragColor = y > 1.0 - border ? color_side / 2.0 : y > 0.35 ? color_side : y > 0.35 - border ? vec4(vec3(0.8), 1.0) : v_color;
