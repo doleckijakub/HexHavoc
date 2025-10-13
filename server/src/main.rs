@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+pub mod config;
 pub mod model;
 pub mod packet;
 pub mod terrain;

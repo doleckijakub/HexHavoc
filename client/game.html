@@ -8,6 +8,7 @@
     html, body { height: 100%; margin: 0; background: #111 }
     canvas { display: block; width: 100%; height: 100vh; }
     #fps, #position { z-index: 100; position: fixed; left: 10px; color: white; font-family: monospace; font-weight: bold; background-color: black; }
+    #scale-slider { z-index: 100; position: fixed; left: 10px; top: 70px; }
     #fps { top: 10px; }
     #position { top: 40px; }
   </style>
@@ -17,5 +18,6 @@
   <script type="module" src="src/game.ts"></script>
   <span id="fps"></span>
   <span id="position"></span>
+  <input id="scale-slider" type="range" min="1" max="128" value="32">
 </body>
 </html>

@@ -6,8 +6,11 @@ use std::{
 };
 use uuid::Uuid;
 
+use crate::config::*;
 use crate::packet::{ErrorPacket, Packet};
 use crate::terrain::{TileType, TerrainChunk, TerrainGenerator};
+
+/// STRUCT
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy)]
 pub struct Vec2 {
@@ -21,23 +24,51 @@ impl Vec2 {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct EntityPlayer {
+    pub username: String,
+    // TODO: sprite
+    // TODO: tint color
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum EntityType {
+    #[serde(rename = "player")]
+    Player(EntityPlayer)
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Entity {
+    pub id: Uuid,
+    pub position: Vec2,
+    pub value: EntityType,
+}
+
 pub struct Game {
     pub id: Uuid,
     pub name: String,
     
-    // net
-    pub player_ids: Vec<Uuid>,
+    pub entity_map: HashMap<Uuid, Entity>,
 
-    // world
     terrain_generator: TerrainGenerator,
 }
 
-const WORLD_SIZE: i32 = 1000;
-const HALF_WORLD_SIZE: i32 = WORLD_SIZE / 2;
+#[derive(Clone)]
+pub struct Client {
+    pub id: Uuid,
+    pub ws_session: Arc<Mutex<actix_ws::Session>>,
+    pub game: Option<Arc<Mutex<Game>>>,
+}
 
-const VIEW_RANGE: f32 = 20.0;
+pub struct ServerState {
+    pub games: HashMap<Uuid, Arc<Mutex<Game>>>,
+    pub game_ids_by_name: HashMap<String, Uuid>,
+    pub clients: HashMap<Uuid, Client>,
+}
 
-const CHUNK_SIZE: i32 = 8;
+pub type SharedState = Arc<Mutex<ServerState>>;
+
+/// IMPL
 
 fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
     let mut coords = vec![];
@@ -56,22 +87,30 @@ fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
     coords
 }
 
+impl Entity {
+    fn player(id: Uuid, position: Vec2, username: String) -> Self {
+        Self {
+            id,
+            position,
+            value: EntityType::Player(EntityPlayer { username })
+        }
+    }
+}
+
 impl Game {
     pub fn log<S: AsRef<str>>(&self, message: S) {
-        println!("[G_{}] {}", self.id, message.as_ref());
+        println!("[G_{}] ({}) {}", self.id, self.name, message.as_ref());
     }
 
     pub fn elog<S: AsRef<str>>(&self, message: S) {
-        eprintln!("[G_{}] {}", self.id, message.as_ref());
+        eprintln!("[G_{}] ({}) {}", self.id, self.name, message.as_ref());
     }
 
     pub fn new(id: Uuid, name: String, seed: u32) -> Self {
         Self {
             id,
             name,
-
-            player_ids: vec![],
-
+            entity_map: HashMap::new(),
             terrain_generator: TerrainGenerator::new(seed),
         }
     }
@@ -81,11 +120,13 @@ impl Game {
     }
 
     pub fn get_new_spawn_location(&self) -> Vec2 {
+        return Vec2::new(512.0, 512.0);
+
         let mut rng = rand::rng();
 
         loop {
-            let x = rng.random_range(-HALF_WORLD_SIZE..HALF_WORLD_SIZE);
-            let y = rng.random_range(-HALF_WORLD_SIZE..HALF_WORLD_SIZE);
+            let x = rng.random_range(0..WORLD_SIZE);
+            let y = rng.random_range(0..WORLD_SIZE);
 
             match self.get_tile(x, y) {
                 TileType::Water | TileType::DeepWater => continue,
@@ -110,24 +151,28 @@ impl Game {
     }
 }
 
-#[derive(Clone)]
-pub struct PlayerData {
-    pub game_id: Uuid,
-    pub username: String,
-    pub position: Vec2,
-}
-
-#[derive(Clone)]
-pub struct Client {
-    pub id: Uuid,
-    pub ws_session: actix_ws::Session,
-    pub player_data: Option<PlayerData>,
-}
-
 impl Client {
+    fn get_player_entity(&self) -> Option<Entity> {
+        self.game.as_ref().and_then(|game_arc| {
+            let game = game_arc.lock().ok()?;
+            game.entity_map.get(&self.id).cloned()
+        })
+    }
+
+    #[allow(irrefutable_let_patterns)] // TODO: remove when adding more entities
+    fn get_player(&self) -> Option<EntityPlayer> {
+        if self.game.is_none() { return None; }
+
+        if let EntityType::Player(player) = self.get_player_entity().and_then(|entity| Some(entity.value.clone())).unwrap() {
+            return Some(player);
+        }
+
+        panic!("Client entity is not a player");
+    }
+
     fn log_prefix(&self) -> String {
-        match &self.player_data {
-            Some(PlayerData { username, .. }) => format!("[C_{}] ({})", self.id, username),
+        match &self.get_player() {
+            Some(EntityPlayer { username, .. }) => format!("[C_{}] ({})", self.id, username),
             None => format!("[C_{}]", self.id),
         }
     }
@@ -140,21 +185,26 @@ impl Client {
         println!("{} {}", self.log_prefix(), message.as_ref());
     }
 
-    pub async fn send(&mut self, packet: Packet) {
+    pub async fn send(&self, packet: Packet) {
         let json = serde_json::to_string(&packet).unwrap();
-        self.ws_session.text(json).await.ok();
+        if let Ok(mut session) = self.ws_session.lock() {
+            session.text(json).await.ok();
+        }
     }
 
-    pub async fn send_error<S: AsRef<str>>(&mut self, error: S) {
+    pub async fn send_error<S: AsRef<str>>(&self, error: S) {
         let packet = ErrorPacket::new(error);
         let json = serde_json::to_string(&packet).unwrap();
-        self.ws_session.text(json).await.ok();
+        if let Ok(mut session) = self.ws_session.lock() {
+            session.text(json).await.ok();
+        }
     }
 
+    #[allow(irrefutable_let_patterns)] // TODO: remove when adding more entities
     pub async fn recv(&mut self, packet: Packet, state: &mut ServerState) {
         match packet {
             Packet::PlayerRegister { game_name, username } => {
-                if self.player_data.is_some() {
+                if self.get_player().is_some() {
                     self.elog("Tried to reregister");
                     return;
                 }
@@ -168,38 +218,90 @@ impl Client {
                 };
 
                 for (_, client) in state.clients.iter() {
-                    if let Some(player_data) = &client.player_data {
-                        if player_data.username == username {
-                            self.send_error("username-taken").await;
+                    let client = client.clone();
+
+                    if client.game.is_none() { continue; }
+
+                    if let Some(client_game) = client.game {
+                        let client_game = client_game.lock().unwrap();
+                        
+                        if client_game.id != game_id { continue; }
+
+                        if let Some(player_entity) = client_game.entity_map.get(&client.id) {
+                            if let EntityType::Player(player) = &player_entity.value {
+                                if player.username == username {
+                                    self.send_error("username-taken").await;
+                                    return;
+                                }
+                            }
                         }
                     }
                 }
 
-                let game = state.games.get(&game_id).unwrap();
+                let game = state.games.get(&game_id).unwrap().clone();
+                self.game = Some(game.clone());
+                let mut game_guard = game.lock().unwrap();
 
-                let position = game.get_new_spawn_location();
+                state.clients.insert(self.id, self.clone());
 
-                self.player_data = Some(PlayerData {
-                    game_id,
-                    username,
-                    position,
-                });
+                let position = game_guard.get_new_spawn_location();
 
-                let chunks = get_chunk_coords_visible_from(position)
+                let entity = Entity::player(self.id, position, username);
+
+                game_guard.entity_map.insert(self.id, entity.clone());
+
+                let chunk_coords = get_chunk_coords_visible_from(position);
+
+                let chunks: Vec<_> = chunk_coords
                     .into_iter()
-                    .map(move |(x, y)| game.get_chunk(x, y));
+                    .map(|(x, y)| game_guard.get_chunk(x, y))
+                    .collect();
 
                 for chunk in chunks {
                     let packet = Packet::TerrainChunk { chunk };
                     self.send(packet).await;
                 }
 
-                let res = Packet::PlayerRegistered {
-                    id: self.id,
-                    position
-                };
+                #[allow(unreachable_patterns)] // TODO: remove when adding more entities
+                let player_ids: Vec<_> = game_guard.entity_map
+                    .values()
+                    .filter_map(|e| match e.value {
+                        EntityType::Player(_) => Some(e.id),
+                        _ => None,
+                    })
+                    .collect();
 
-                self.send(res).await;
+                drop(game_guard);
+
+                let mut game_clients: Vec<Client> = Vec::new();
+
+                for id in player_ids {
+                    if let Some(client) = state.clients.get(&id) {
+                        if let Some(client_game) = &client.game {
+                            if client_game.lock().unwrap().id == game_id {
+                                game_clients.push(client.clone());
+                            }
+                        }
+                    }
+                }
+
+                for client in game_clients {
+                    client.send(Packet::EntityLoad {
+                        entity: entity.clone()
+                    }).await;
+
+                    if client.id != self.id {
+                        let entity = client.get_player_entity().unwrap();
+
+                        self.send(Packet::EntityLoad {
+                            entity
+                        }).await;
+                    }
+                }
+
+                self.send(Packet::PlayerRegistered {
+                    id: self.id
+                }).await;
 
                 self.log("Registered");
             }
@@ -209,22 +311,26 @@ impl Client {
                     return; // TODO: ponder
                 }
 
+                let game = self.game.clone().unwrap();
+
                 // TODO: check diff for cheating
 
                 // send chunk update
 
                 let mut chunk_coords = get_chunk_coords_visible_from(new_position);
-                let prev_chunk_coords = get_chunk_coords_visible_from(self.player_data.clone().unwrap().position);
+                let prev_chunk_coords = get_chunk_coords_visible_from(self.get_player_entity().clone().unwrap().position);
 
                 let prev_chunk_coords: HashSet<_> = prev_chunk_coords.into_iter().collect();
 
                 chunk_coords.retain(|x| !prev_chunk_coords.contains(x));
 
-                let game = state.games.get(&self.player_data.clone().unwrap().game_id).unwrap();
-
-                let chunks = chunk_coords
-                    .into_iter()
-                    .map(move |(x, y)| game.get_chunk(x, y));
+                let chunks: Vec<_> = {
+                    let game_guard = game.lock().unwrap();
+                    chunk_coords
+                        .into_iter()
+                        .map(|(x, y)| game_guard.get_chunk(x, y))
+                        .collect()
+                };
 
                 for chunk in chunks {
                     let packet = Packet::TerrainChunk { chunk };
@@ -233,22 +339,28 @@ impl Client {
 
                 // update position
 
-                if let Some(ref mut player_data) = self.player_data {
-                    player_data.position = new_position;
+                if let Some(game_arc) = &self.game {
+                    if let Ok(mut game_guard) = game_arc.lock() {
+                        if let Some(entity_mut) = game_guard.entity_map.get_mut(&self.id) {
+                            entity_mut.position = new_position;
+                        }
+                    }
                 }
 
                 // send position update to others
 
-                let mut others = state
+                let others: Vec<Client> = state
                     .clients
-                    .clone()
-                    .into_iter()
-                    .collect::<Vec<_>>();
+                    .values()
+                    .filter(|c| c.id != self.id)
+                    .cloned()
+                    .collect();
 
-                others.retain(|(_, c)| c.id != self.id);
-
-                for (_, mut client) in others {
-                    client.send(Packet::EntityMove { id, new_position }).await;
+                for client in others {
+                    client.send(Packet::EntityMove {
+                        id,
+                        new_position
+                    }).await;
                 }
             }
 
@@ -257,12 +369,6 @@ impl Client {
             }
         }
     }
-}
-
-pub struct ServerState {
-    pub games: HashMap<Uuid, Game>,
-    pub game_ids_by_name: HashMap<String, Uuid>,
-    pub clients: HashMap<Uuid, Client>,
 }
 
 impl ServerState {
@@ -280,11 +386,9 @@ impl ServerState {
 
         game.log("Created");
 
-        self.games.insert(id, game);
+        self.games.insert(id, Arc::new(Mutex::new(game)));
         self.game_ids_by_name.insert(name.to_string(), id);
 
         id
     }
 }
-
-pub type SharedState = Arc<Mutex<ServerState>>;

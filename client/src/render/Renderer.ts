@@ -33,6 +33,7 @@ export class Renderer {
     private currentShader: Shader | null = null;
     private camera: Vec2 = new Vec2(0, 0);
     private terrainRenderer!: TerrainRenderer;
+    scale: number = 64;
 
     constructor(private canvas: HTMLCanvasElement) {
         const gl = canvas.getContext("webgl2");
@@ -60,6 +61,79 @@ export class Renderer {
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
         gl.clearColor(0.1, 0.1, 0.1, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
+    }
+
+    drawSquare(x: number, y: number, size: number, color: TVec4) {
+        const gl = this.gl;
+        if (!this.currentShader) throw new Error("Shader not bound");
+
+        // Define a simple quad centered at (0, 0)
+        const vertices = new Float32Array([
+            -0.5, -0.5,
+            0.5, -0.5,
+            -0.5,  0.5,
+            -0.5,  0.5,
+            0.5, -0.5,
+            0.5,  0.5,
+        ]);
+
+        // Create buffer for quad
+        const vbo = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        // Bind attributes
+        const locUnit = this.currentShader.getAttribLocation('a_unitPos');
+        gl.enableVertexAttribArray(locUnit);
+        gl.vertexAttribPointer(locUnit, 2, gl.FLOAT, false, 0, 0);
+
+        // Compute transformation for one square
+        const offsets = new Float32Array([x, y]);
+        const scales = new Float32Array([size, size]);
+        const colors = new Float32Array(color);
+
+        const vp = Mat3.ortho(this.canvas.width, this.canvas.height, this.camera, this.scale);
+        gl.uniformMatrix3fv(this.currentShader.getUniformLocation("u_vp"), false, vp.arr());
+
+        // Create single-instance buffers
+        const offsetLoc = this.currentShader.getAttribLocation('a_offset');
+        const scaleLoc = this.currentShader.getAttribLocation('a_scale');
+        const colorLoc = this.currentShader.getAttribLocation('a_color');
+
+        const offsetBuf = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, offsetBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, offsets, gl.STREAM_DRAW);
+        gl.enableVertexAttribArray(offsetLoc);
+        gl.vertexAttribPointer(offsetLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(offsetLoc, 1);
+
+        const scaleBuf = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, scaleBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, scales, gl.STREAM_DRAW);
+        gl.enableVertexAttribArray(scaleLoc);
+        gl.vertexAttribPointer(scaleLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(scaleLoc, 1);
+
+        const colorBuf = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuf);
+        gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STREAM_DRAW);
+        gl.enableVertexAttribArray(colorLoc);
+        gl.vertexAttribPointer(colorLoc, 4, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribDivisor(colorLoc, 1);
+
+        // Draw one square
+        gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, 1);
+
+        // Cleanup
+        gl.disableVertexAttribArray(locUnit);
+        gl.disableVertexAttribArray(offsetLoc);
+        gl.disableVertexAttribArray(scaleLoc);
+        gl.disableVertexAttribArray(colorLoc);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.deleteBuffer(vbo);
+        gl.deleteBuffer(offsetBuf);
+        gl.deleteBuffer(scaleBuf);
+        gl.deleteBuffer(colorBuf);
     }
 
     private createTerrainRenderer(): TerrainRenderer {
@@ -159,7 +233,7 @@ export class Renderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, tr.colorBuffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, tr.colors.subarray(0, instanceCount * 4));
 
-        const vp = Mat3.ortho(this.canvas.width, this.canvas.height, this.camera, 32);
+        const vp = Mat3.ortho(this.canvas.width, this.canvas.height, this.camera, this.scale);
         gl.uniformMatrix3fv(this.currentShader.getUniformLocation("u_vp"), false, vp.arr());
 
         gl.bindVertexArray(tr.vao);

@@ -18,11 +18,6 @@ export interface EntityLoadPacket {
     entity: Entity,
 }
 
-export interface EntityDestroyedPacket {
-    packet_type: 'entity_destroyed',
-    id: string,
-}
-
 export interface PlayerRegisterPacket {
     packet_type: 'player_register';
     game_name: string;
@@ -32,10 +27,9 @@ export interface PlayerRegisterPacket {
 export interface PlayerRegisteredPacket {
     packet_type: 'player_registered',
     id: string,
-    position: Vec2,
 }
 
 export type Packet = 
-    EntityMovePacket | EntityLoadPacket | EntityDestroyedPacket |
+    EntityMovePacket | EntityLoadPacket |
     TerrainChunkPacket |
     PlayerRegisterPacket | PlayerRegisteredPacket;

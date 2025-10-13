@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::model::Vec2;
+use crate::model::{Vec2, Entity};
 use crate::terrain::TerrainChunk;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,12 +29,16 @@ pub enum Packet {
     #[serde(rename = "player_registered")]
     PlayerRegistered {
         id: Uuid,
-        position: Vec2,
     },
 
     #[serde(rename = "terrain_chunk")]
     TerrainChunk {
         chunk: TerrainChunk
+    },
+
+    #[serde(rename = "entity_load")]
+    EntityLoad {
+        entity: Entity,
     },
 
     #[serde(rename = "entity_move")]

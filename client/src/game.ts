@@ -1,9 +1,10 @@
 import type {
     Packet,
     PlayerRegisteredPacket,
-    TerrainTileType,
     TerrainChunkPacket,
-    TerrainChunk
+    TerrainChunk,
+    EntityLoadPacket,
+    EntityMovePacket
 } from '@type';
 
 import { Renderer, ShaderManager } from '@render';
@@ -66,21 +67,29 @@ class Game {
             });
         };
 
-        ws.onmessage = ev => this.recv(JSON.parse(ev.data));
+        ws.onmessage = ev => {
+            console.log(ev.data);
+            this.recv(JSON.parse(ev.data));
+        };
+
         ws.onclose = console.warn;
         ws.onerror = console.error;
 
         this.ws = ws;
     }
 
+    private onEntityLoad(packet: EntityLoadPacket) {
+        this.entities.set(packet.entity.id, packet.entity);
+    }
+
+    private onEntityMove(packet: EntityMovePacket) {
+        const entity = this.entities.get(packet.id);
+        if (!entity) console.error(`Entity ${packet.id} does not exist and thus cannot be moved`);
+        entity!.position = packet.new_position;
+    }
+
     private onPlayerRegistered(packet: PlayerRegisteredPacket) {
         this.playerId = packet.id;
-
-        this.entities.set(this.playerId, {
-            'id': this.playerId,
-            'pos': packet.position,
-            'ty': 'player',
-        });
     }
 
     private onTerrainChunk(packet: TerrainChunkPacket) {
@@ -89,8 +98,11 @@ class Game {
 
     private recv(packet: Packet) {
         switch (packet.packet_type) {
+            case 'entity_load': this.onEntityLoad(packet); break;
+            case 'entity_move': this.onEntityMove(packet); break;
             case 'player_registered': this.onPlayerRegistered(packet); break;
             case 'terrain_chunk': this.onTerrainChunk(packet); break;
+            default: console.warn(`No handler found for packet of type "${packet.packet_type}"`);
         }
     }
 
@@ -99,6 +111,8 @@ class Game {
     }
 
     private render(now: number) {
+        renderer.scale = Number.parseFloat((document.querySelector("#scale-slider") as HTMLInputElement).value || '32');
+
         renderer.clear();
 
         if (this.playerId) {
@@ -106,11 +120,16 @@ class Game {
 
             renderer.useShader(terrainShader);
 
-            const camera = player!.pos;
+            const camera = player!.position;
 
             renderer.setCamera(camera);
 
             renderer.drawTerrain(Array.from(this.terrain.values()));
+
+            for (let entity of this.entities.values()) {
+                const { x, y } = entity.position;
+                renderer.drawSquare(x, y, 0.8, Color.hex('cf4345'));
+            }
 
             this.update(now);
         }
@@ -133,7 +152,7 @@ class Game {
         this.last = now;
 
         this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
-        this.positionSpan.innerText = `x: ${Math.round(player.pos.x)} y: ${Math.round(player.pos.y)}`;
+        this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
 
         const speed = this.keys["ShiftLeft"] ? 50 : 5;
 
@@ -147,15 +166,15 @@ class Game {
             const len = Math.hypot(dx, dy);
             dx /= len; dy /= len;
 
-            player.pos = new Vec2(
-                player.pos.x + dx * dt * speed,
-                player.pos.y + dy * dt * speed
+            player.position = new Vec2(
+                player.position.x + dx * dt * speed,
+                player.position.y + dy * dt * speed
             );
 
             this.send({
                 packet_type: 'entity_move',
                 id: this.playerId,
-                new_position: player.pos,
+                new_position: player.position,
             });
         }
     }
