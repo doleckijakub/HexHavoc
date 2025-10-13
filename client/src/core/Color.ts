@@ -1,15 +1,27 @@
-import { Vec4 } from "./Vec4";
+import type { TColor, TVec4 } from "@type";
 
 export class Color {
-    static rgb(r: number, g: number, b: number): Vec4 {
-        return new Vec4(r, g, b, 1).div(255);
+    public readonly r: number;
+    public readonly g: number;
+    public readonly b: number;
+    public readonly a: number;
+
+    static random(): TColor {
+        const r = Math.floor(Math.random() * 256) / 255;
+        const g = Math.floor(Math.random() * 256) / 255;
+        const b = Math.floor(Math.random() * 256) / 255;
+        return [r, g, b, 1];
     }
 
-    static rgba(r: number, g: number, b: number, a: number): Vec4 {
-        return new Vec4(r, g, b, a).div(255);
+    static rgb(r: number, g: number, b: number): TColor {
+        return [r / 255, g / 255, b / 255, 1];
     }
 
-    static hex(hex: string): Vec4 {
+    static rgba(r: number, g: number, b: number, a: number): TColor {
+        return [r / 255, g / 255, b / 255, a];
+    }
+
+    static hex(hex: string): TColor {
         if (hex.startsWith('#')) {
             hex = hex.slice(1);
         }
@@ -27,5 +39,9 @@ export class Color {
         } else {
             throw new Error('Invalid hex color');
         }
+    }
+
+    arr(): TVec4 {
+        return [ this.r, this.g, this.b, this.a ];
     }
 }

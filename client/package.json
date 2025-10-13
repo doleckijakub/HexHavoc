@@ -1,14 +1,16 @@
 {
   "name": "client",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "bun run ./src/server.ts",
-    "build": "bun build ./index.html --minify --outdir=dist && bun build ./game.html --minify --outdir=dist"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
-  "type": "module"
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7"
+  }
 }

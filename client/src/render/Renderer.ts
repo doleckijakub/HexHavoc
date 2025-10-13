@@ -1,6 +1,6 @@
 import { Vec2, Mat3, Vec4, Color } from '@core';
 import { Shader } from '@render';
-import type { TerrainChunk, TerrainTileType } from '@type';
+import type { TerrainChunk, TerrainTileType, TVec4 } from '@type';
 
 interface TerrainRenderer {
     vao: WebGLVertexArrayObject;
@@ -12,20 +12,20 @@ interface TerrainRenderer {
     colorBuffer: WebGLBuffer;
 }
 
-const TILE_COLORS: Record<TerrainTileType, Vec4> = {
-    DeepWater: Color.rgb(0, 0, 70),
-    Water: Color.rgb(25, 50, 150),
-    Beach: Color.rgb(230, 220, 170),
-    Grass: Color.rgb(50, 180, 50),
-    Forest: Color.rgb(20, 100, 20),
-    Desert: Color.rgb(237, 151, 125),
-    Savanna: Color.rgb(189, 183, 107),
-    Tundra: Color.rgb(0, 50, 0),
-    Snow: Color.rgb(240, 240, 255),
-    Stone: Color.rgb(130, 130, 130),
-    Jungle: Color.rgb(0, 150, 0),
-    Swamp: Color.rgb(40, 60, 20),
-    Ice: Color.rgb(180, 220, 255),
+const TILE_COLORS: Record<TerrainTileType, TVec4> = {
+    [ "DeepWater" ]: Color.rgb(0, 0, 70),
+    [ "Water" ]: Color.rgb(25, 50, 150),
+    [ "Beach" ]: Color.rgb(230, 220, 170),
+    [ "Grass" ]: Color.rgb(50, 180, 50),
+    [ "Forest" ]: Color.rgb(20, 100, 20),
+    [ "Desert" ]: Color.rgb(237, 151, 125),
+    [ "Savanna" ]: Color.rgb(189, 183, 107),
+    [ "Tundra" ]: Color.rgb(0, 50, 0),
+    [ "Snow" ]: Color.rgb(240, 240, 255),
+    [ "Stone" ]: Color.rgb(130, 130, 130),
+    [ "Jungle" ]: Color.rgb(0, 150, 0),
+    [ "Swamp" ]: Color.rgb(40, 60, 20),
+    [ "Ice" ]: Color.rgb(180, 220, 255),
 };
 
 export class Renderer {
@@ -146,8 +146,7 @@ export class Renderer {
                 tr.scales[I * 2 + 0] = TILE_SIZE;
                 tr.scales[I * 2 + 1] = TILE_SIZE;
 
-                const color = TILE_COLORS[tileType];
-                tr.colors.set([color.x, color.y, color.z, color.w], I * 4);
+                tr.colors.set(TILE_COLORS[tileType], I * 4);
             }
         }
 

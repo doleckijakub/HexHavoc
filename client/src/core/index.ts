@@ -7,3 +7,6 @@ export * from './Geometry';
 export * from './GeometryFactory';
 export * from './Material';
 export * from './Texture';
+export * from './Sprite';
+export * from './Transform';
+export * from './utils';

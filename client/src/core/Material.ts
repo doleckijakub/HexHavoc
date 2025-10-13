@@ -1,4 +1,5 @@
 import { Color, Texture } from "@core";
+import type { TColor } from "@type";
 
 export class Material {
   private color = Color.rgba(255, 255, 255, 1);
@@ -31,6 +32,10 @@ export class Material {
     this.gl.useProgram(null);
   }
 
+  hasTexture() {
+    return this.texture !== undefined || this.texture !== null;
+  }
+
   getTexture() {
     return this.texture;
   }
@@ -43,7 +48,7 @@ export class Material {
     return this.color;
   }
 
-  setColor(color: Color) {
+  setColor(color: TColor) {
     this.color = color;
   }
 }

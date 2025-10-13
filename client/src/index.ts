@@ -80,7 +80,7 @@ class Game {
         const registerPacket: PlayerRegisterPacket = {
             packet_type: 'player_register',
             username: 'mdd',
-            game_id: 'test',
+            game_name: 'test',
         };
 
         this.send(registerPacket);
