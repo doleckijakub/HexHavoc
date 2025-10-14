@@ -120,7 +120,7 @@ impl Game {
     }
 
     pub fn get_new_spawn_location(&self) -> Vec2 {
-        return Vec2::new(8.0, 1016.0);
+        return Vec2::new(128.0, 128.0);
 
         let mut rng = rand::rng();
 

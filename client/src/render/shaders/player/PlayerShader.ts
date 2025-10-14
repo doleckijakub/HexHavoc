@@ -10,8 +10,6 @@ export class PlayerShader extends Shader {
     }
 
     renderPlayer(playerEntity: Entity) {
-        console.log({ playerEntity });
-
         this.use();
 
         const gl = this.gl;

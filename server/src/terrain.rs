@@ -104,7 +104,7 @@ impl TerrainGenerator {
 
     pub fn get_tile(&self, x: f64, y: f64) -> TileType {
         const HWF: f64 = WORLD_SIZE as f64 / 2.0;
-        const WATER_EDGE_SIZE: f64 = 16.0;
+        const WATER_EDGE_SIZE: f64 = 128.0;
 
         let mut e = self.elev_noise.get(x, y);
         let s = (x - HWF).abs().max((y - HWF).abs()) - HWF + WATER_EDGE_SIZE;

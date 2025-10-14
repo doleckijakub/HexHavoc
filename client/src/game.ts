@@ -21,7 +21,7 @@ const terrainShader = new TerrainShader(renderer);
 
 class Game {
     private ws: WebSocket;
-    private keys: Record<string, boolean> = {};
+    private keyboardState: Record<string, boolean> = {};
 
     private playerId?: string;
     private entities: Map<string, Entity> = new Map();
@@ -32,13 +32,16 @@ class Game {
     // TODO: remove?
     private fpsSpan = document.getElementById('fps') as HTMLSpanElement;
     private positionSpan = document.getElementById('position') as HTMLSpanElement;
+    private scaleSlider = document.getElementById("scale-slider") as HTMLInputElement;
 
     constructor() {
         const ws = new WebSocket(`ws://${document.location.host}/ws`);
         const pathElements = document.location.pathname.split('/');
         const gameName = pathElements[pathElements.length - 1];
 
-        renderer.setClearColor(Color.hex('181818'));
+        renderer.setClearColor(Color.hex('7F007F'));
+        // TODO
+        renderer.setClearColor(Color.rgb(0, 0, 70));
 
         ws.onopen = () => {
             this.send({
@@ -105,7 +108,7 @@ class Game {
     private render(now: number) {
         renderer.clear();
 
-        renderer.setCameraScale(Number.parseFloat((document.querySelector("#scale-slider") as HTMLInputElement).value!));
+        renderer.setCameraScale(Number.parseFloat(this.scaleSlider.value!));
 
         if (!this.playerId) return;
 
@@ -134,13 +137,13 @@ class Game {
         this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
         this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
 
-        const speed = this.keys["ShiftLeft"] ? 50 : 5;
+        const speed = this.keyboardState["ShiftLeft"] ? 50 : 5;
 
         let dx = 0, dy = 0;
-        if (this.keys["KeyW"]) dy += 1;
-        if (this.keys["KeyS"]) dy -= 1;
-        if (this.keys["KeyA"]) dx -= 1;
-        if (this.keys["KeyD"]) dx += 1;
+        if (this.keyboardState["KeyW"]) dy += 1;
+        if (this.keyboardState["KeyS"]) dy -= 1;
+        if (this.keyboardState["KeyA"]) dx -= 1;
+        if (this.keyboardState["KeyD"]) dx += 1;
 
         if (dx || dy) {
             const len = Math.hypot(dx, dy);
@@ -156,7 +159,7 @@ class Game {
                 const [cx, cy] = [Number.parseInt(scx), Number.parseInt(scy)];
                 const [x, y] = [cx * 8, cy * 8];
 
-                if (Math.hypot(x - player.position.x, y - player.position.y) > 100) {
+                if (player.position.sub(new Vec2(x, y)).length() > 100) {
                     this.terrain.delete(loc);
                 }
             }
@@ -174,8 +177,8 @@ class Game {
 
         requestAnimationFrame(this.loop.bind(this));
 
-        window.addEventListener("keydown", e => this.keys[e.code] = true);
-        window.addEventListener("keyup", e => this.keys[e.code] = false);
+        window.addEventListener("keydown", e => this.keyboardState[e.code] = true);
+        window.addEventListener("keyup", e => this.keyboardState[e.code] = false);
 
         setInterval(() => this.ws.send(''), 20 * 1000);
     }
