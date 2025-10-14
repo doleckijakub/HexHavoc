@@ -60,12 +60,10 @@ class Game {
     }
 
     private onEntityLoad(packet: EntityLoadPacket) {
-        console.log('onEntityLoad');
         this.entities.set(packet.entity.id, packet.entity);
     }
 
     private onEntityMove(packet: EntityMovePacket) {
-        console.log('onEntityMove');
         const entity = this.entities.get(packet.id);
 
         if (!entity) {
