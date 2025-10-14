@@ -1,6 +1,7 @@
 use noise::{NoiseFn, OpenSimplex};
 use serde::{Deserialize, Serialize};
 
+use crate::config::*;
 use crate::model::Vec2;
 
 pub struct OctavedNoise {
@@ -102,7 +103,12 @@ impl TerrainGenerator {
     }
 
     pub fn get_tile(&self, x: f64, y: f64) -> TileType {
-        let e = self.elev_noise.get(x, y);
+        const HWF: f64 = WORLD_SIZE as f64 / 2.0;
+        const WATER_EDGE_SIZE: f64 = 16.0;
+
+        let mut e = self.elev_noise.get(x, y);
+        let s = (x - HWF).abs().max((y - HWF).abs()) - HWF + WATER_EDGE_SIZE;
+        if s > 0.0 { e -= s / WATER_EDGE_SIZE; }
 
         let mut t = self.temp_noise.get(x, y);
         t = (t - (e - BEACH_LEVEL) * 0.6).clamp(0.0, 1.0);

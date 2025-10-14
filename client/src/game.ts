@@ -7,103 +7,17 @@ import type {
     EntityMovePacket
 } from '@type';
 
-import { Renderer, ShaderManager } from '@render';
-import { Color, Vec2, Vec4, type Entity } from '@core';
+import { Renderer } from '@render';
+import { Color, Vec2, type Entity } from '@core';
+
+import { PlayerShader } from '@render/shaders/player/PlayerShader';
+import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
-const shaderManager = new ShaderManager(renderer.getContext());
 
-shaderManager.add("terrain", `
-attribute vec2 a_unitPos;
-attribute vec2 a_offset;
-attribute vec2 a_scale;
-attribute vec4 a_color;
-
-attribute vec4 a_colorLeft;
-attribute vec4 a_colorRight;
-attribute vec4 a_colorUp;
-attribute vec4 a_colorDown;
-
-uniform mat3 u_vp;
-
-varying vec4 v_color;
-varying vec4 v_left;
-varying vec4 v_right;
-varying vec4 v_up;
-varying vec4 v_down;
-varying vec2 v_uv;
-
-void main() {
-  vec2 world = a_unitPos * a_scale + a_offset;
-  vec3 clip = u_vp * vec3(world, 1.0);
-
-  gl_Position = vec4(clip.xy, 0.0, 1.0);
-  v_color = a_color;
-  v_left = a_colorLeft;
-  v_right = a_colorRight;
-  v_up = a_colorUp;
-  v_down = a_colorDown;
-
-  v_uv = a_unitPos + 0.5;
-}
-`, `
-precision mediump float;
-
-varying vec4 v_color;
-varying vec4 v_left;
-varying vec4 v_right;
-varying vec4 v_up;
-varying vec4 v_down;
-varying vec2 v_uv;
-
-const vec4 COLOR_WATER = vec4(25.0, 50.0, 150.0, 255.0) / 255.0;
-const vec4 COLOR_DEEP_WATER = vec4(0.0, 0.0, 70.0, 255.0) / 255.0;
-
-const vec4 COLOR_SIDE_0 = vec4(79.0, 51.0, 9.0, 255.0) / 255.0;
-const vec4 COLOR_SIDE_1 = vec4(110.0, 71.0, 14.0, 255.0) / 255.0;
-
-void main() {
-  float border = 1.0 / 16.0;
-
-  float x = v_uv.x;
-  float y = v_uv.y;
-
-  vec4 color = v_color;
-
-  {
-    float count = 1.0;
-
-    if (distance(v_left, COLOR_DEEP_WATER) < 0.01)  { count += 1.0; color += v_left; }
-    if (distance(v_right, COLOR_DEEP_WATER) < 0.01) { count += 1.0; color += v_right; }
-    if (distance(v_up, COLOR_DEEP_WATER) < 0.01)    { count += 1.0; color += v_up; }
-    if (distance(v_down, COLOR_DEEP_WATER) < 0.01)  { count += 1.0; color += v_down; }
-
-    color /= count;
-  }
-
-  if (distance(v_color, COLOR_WATER) < 0.01 && v_color != v_up && distance(v_up, COLOR_DEEP_WATER) > 0.1) {
-    vec4 color_side = x < 0.25 ? COLOR_SIDE_0 : x < 0.5 ? COLOR_SIDE_1 : x < 0.75 ? COLOR_SIDE_0 : COLOR_SIDE_1;
-    color_side = (color_side + v_up) / 2.0;
-    gl_FragColor = y > 1.0 - border ? color_side / 2.0 : y > 0.35 ? color_side : y > 0.35 - border ? vec4(vec3(0.8), 1.0) : v_color;
-    return;
-  }
-
-  bool drawBorder = false;
-
-  if (distance(v_color, COLOR_WATER) > 0.1) {
-    if (x < border && v_color != v_left) drawBorder = true;
-    if (x > 1.0 - border && v_color != v_right) drawBorder = true;
-    if (y > 1.0 - border && v_color != v_up) drawBorder = true;
-    if (y < border && v_color != v_down) drawBorder = true;
-  }
-
-  gl_FragColor = drawBorder ? color / 1.5 : color;
-}
-
-`);
-
-const terrainShader = shaderManager.get("terrain");
+const playerShader = new PlayerShader(renderer);
+const terrainShader = new TerrainShader(renderer);
 
 class Game {
     private ws: WebSocket;
@@ -113,13 +27,18 @@ class Game {
     private entities: Map<string, Entity> = new Map();
     private terrain: Map<string, TerrainChunk> = new Map();
 
+    private lastLoopTimestamp: number;
+    
+    // TODO: remove?
+    private fpsSpan = document.getElementById('fps') as HTMLSpanElement;
+    private positionSpan = document.getElementById('position') as HTMLSpanElement;
+
     constructor() {
         const ws = new WebSocket(`ws://${document.location.host}/ws`);
         const pathElements = document.location.pathname.split('/');
         const gameName = pathElements[pathElements.length - 1];
 
-        renderer.useShader(terrainShader);
-        renderer.initTerrainRenderer();
+        renderer.setClearColor(Color.hex('181818'));
 
         ws.onopen = () => {
             this.send({
@@ -138,13 +57,20 @@ class Game {
     }
 
     private onEntityLoad(packet: EntityLoadPacket) {
+        console.log('onEntityLoad');
         this.entities.set(packet.entity.id, packet.entity);
     }
 
     private onEntityMove(packet: EntityMovePacket) {
+        console.log('onEntityMove');
         const entity = this.entities.get(packet.id);
-        if (!entity) console.error(`Entity ${packet.id} does not exist and thus cannot be moved`);
-        entity!.position = packet.new_position;
+
+        if (!entity) {
+            console.warn(`Entity ${packet.id} does not exist`);
+            return;
+        }
+
+        entity.position = packet.new_position;
     }
 
     private onPlayerRegistered(packet: PlayerRegisteredPacket) {
@@ -169,37 +95,32 @@ class Game {
         this.ws.send(JSON.stringify(packet));
     }
 
-    private render(now: number) {
-        renderer.scale = Number.parseFloat((document.querySelector("#scale-slider") as HTMLInputElement).value || '32');
+    private loop(now: number) {
+        this.render(now);
+        this.update(now);
 
-        renderer.clear();
-
-        if (this.playerId) {
-            const player = this.entities.get(this.playerId);
-
-            renderer.useShader(terrainShader);
-
-            const camera = player!.position;
-
-            renderer.setCamera(camera);
-
-            renderer.drawTerrain(Array.from(this.terrain.values()));
-
-            for (let entity of this.entities.values()) {
-                const { x, y } = entity.position;
-                renderer.drawSquare(x, y, 0.8, Color.hex('cf4345'));
-            }
-
-            this.update(now);
-        }
-
-        requestAnimationFrame(this.render.bind(this));
+        requestAnimationFrame(this.loop.bind(this));
     }
 
-    private last = performance.now();
-    
-    private fpsSpan = document.getElementById('fps') as HTMLSpanElement;
-    private positionSpan = document.getElementById('position') as HTMLSpanElement;
+    private render(now: number) {
+        renderer.clear();
+
+        renderer.setCameraScale(Number.parseFloat((document.querySelector("#scale-slider") as HTMLInputElement).value!));
+
+        if (!this.playerId) return;
+
+        const player = this.entities.get(this.playerId);
+        if (!player) return;
+
+        renderer.setCameraPosition(player.position);
+
+        terrainShader.renderTerrain(Array.from(this.terrain.values()));
+
+        for (let entity of this.entities.values()) {
+            // TODO: switch (entity.type)
+            playerShader.renderPlayer(entity);
+        }
+    }
 
     private update(now: number) {
         if (!this.playerId) return;
@@ -207,8 +128,8 @@ class Game {
         const player = this.entities.get(this.playerId);
         if (!player) return;
 
-        const dt = (now - this.last) / 1000;
-        this.last = now;
+        const dt = (now - this.lastLoopTimestamp) / 1000;
+        this.lastLoopTimestamp = now;
 
         this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
         this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
@@ -249,10 +170,14 @@ class Game {
     }
 
     public run() {
-        requestAnimationFrame(this.render.bind(this));
+        this.lastLoopTimestamp = performance.now();
+
+        requestAnimationFrame(this.loop.bind(this));
 
         window.addEventListener("keydown", e => this.keys[e.code] = true);
         window.addEventListener("keyup", e => this.keys[e.code] = false);
+
+        setInterval(() => this.ws.send(''), 20 * 1000);
     }
 }
 

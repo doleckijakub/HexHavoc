@@ -73,10 +73,10 @@ pub type SharedState = Arc<Mutex<ServerState>>;
 fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
     let mut coords = vec![];
     
-    let start_y = ((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
-    let end_y   = ((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
-    let start_x = ((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32;
-    let end_x   = ((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32;
+    let start_y = (((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32).max(0);
+    let end_y   = (((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
+    let start_x = (((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32).max(0);
+    let end_x   = (((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
 
     for y in start_y..=end_y {
         for x in start_x..=end_x {
@@ -120,7 +120,7 @@ impl Game {
     }
 
     pub fn get_new_spawn_location(&self) -> Vec2 {
-        return Vec2::new(512.0, 512.0);
+        return Vec2::new(8.0, 1016.0);
 
         let mut rng = rand::rng();
 

@@ -48,7 +48,7 @@ async fn ws(
                         }
                     } else {
                         let locked_state = state.lock().unwrap();
-                        if let Some(client) = locked_state.clients.get(&id) {
+                        if let Some(client) = locked_state.clients.get(&id) && text.len() != 0 {
                             client.elog(format!("Sent an unparsable packet: {}", text));
                         }
                     }

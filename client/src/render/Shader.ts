@@ -4,7 +4,7 @@ export class Shader {
     private attribLocations: Map<string, number> = new Map();
     private uniformLocations: Map<string, WebGLUniformLocation> = new Map();
 
-    constructor(private gl: WebGLRenderingContext, vertexSrc: string, fragmentSrc: string) {
+    constructor(protected gl: WebGL2RenderingContext, vertexSrc: string, fragmentSrc: string) {
         const vs = this.compileShader(vertexSrc, gl.VERTEX_SHADER);
         const fs = this.compileShader(fragmentSrc, gl.FRAGMENT_SHADER);
 
@@ -22,17 +22,26 @@ export class Shader {
     }
 
     private compileShader(src: string, type: number): WebGLShader {
-        const shader = this.gl.createShader(type)!;
-        this.gl.shaderSource(shader, src);
-        this.gl.compileShader(shader);
-        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-            throw new Error(`Shader compile error: ${this.gl.getShaderInfoLog(shader)}`);
+        const gl = this.gl;
+
+        const shader = gl.createShader(type)!;
+
+        gl.shaderSource(shader, src);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            throw new Error(`Shader compile error: ${gl.getShaderInfoLog(shader)}`);
         }
+
         return shader;
     }
 
-    use() {
+    protected use() {
         this.gl.useProgram(this.program);
+    }
+
+    protected finish() {
+        this.gl.useProgram(null);
     }
 
     getAttribLocation(name: string): number {
