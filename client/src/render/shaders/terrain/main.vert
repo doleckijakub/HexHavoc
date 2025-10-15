@@ -19,7 +19,7 @@ void main() {
     vec2 posInTiles = ((a_unitPos + 0.5) * float(u_chunkSize)) + 1.0;
     v_localPosTiles = posInTiles;
 
-    vec2 worldPosTiles = a_offset + (a_unitPos + 0.5) * float(u_chunkSize);
+    vec2 worldPosTiles = a_offset + (a_unitPos + 0.5) * float(u_chunkSize) - vec2(0.5);
     vec2 worldPos = worldPosTiles * u_tileSize;
     v_worldPos = worldPos;
 

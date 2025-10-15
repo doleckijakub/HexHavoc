@@ -6,23 +6,25 @@ import vert from './main.vert?raw';
 import frag from './main.frag?raw';
 
 const TILE_COLORS: TVec4[] = [
-    Color.rgb(0, 0, 70),
-    Color.rgb(25, 50, 150),
-    Color.rgb(230, 220, 170),
-    Color.rgb(50, 180, 50),
-    Color.rgb(20, 100, 20),
-    Color.rgb(237, 151, 125),
-    Color.rgb(189, 183, 107),
-    Color.rgb(0, 50, 0),
-    Color.rgb(240, 240, 255),
-    Color.rgb(130, 130, 130),
-    Color.rgb(0, 150, 0),
-    Color.rgb(40, 60, 20),
-    Color.rgb(180, 220, 255),
+    Color.rgb(0, 0, 70),      // DeepWater
+    Color.rgb(25, 50, 150),   // Water
+    Color.rgb(230, 220, 170), // Beach
+    Color.rgb(50, 180, 50),   // Grass
+    Color.rgb(20, 100, 20),   // Forest
+    Color.rgb(237, 151, 125), // Desert
+    Color.rgb(189, 183, 107), // Savanna
+    Color.rgb(0, 50, 0),      // Tundra
+    Color.rgb(240, 240, 255), // Snow
+    Color.rgb(130, 130, 130), // Stone
+    Color.rgb(0, 150, 0),     // Jungle
+    Color.rgb(40, 60, 20),    // Swamp
+    Color.rgb(180, 220, 255), // Ice
 ];
 
 const CHUNK_SIZE = 8;
 const TILE_SIZE = 1;
+
+const MAX_INSTANCES = 512;
 
 export class TerrainShader extends Shader {
     private vao: WebGLVertexArrayObject;
@@ -36,14 +38,14 @@ export class TerrainShader extends Shader {
     private chunkTilemapTex: WebGLTexture | null = null;
     private maxLayers: number;
 
-    constructor(private renderer: Renderer, maxInstances = 256, maxTextureLayers = 256) {
+    constructor(private renderer: Renderer) {
         super(renderer.getContext(), vert, frag);
 
         this.use();
 
         const gl = this.gl;
 
-        this.maxLayers = Math.max(1, maxTextureLayers);
+        this.maxLayers = Math.max(1, MAX_INSTANCES);
 
         const unitQuad = new Float32Array([
             -0.5, -0.5,
@@ -54,8 +56,8 @@ export class TerrainShader extends Shader {
              0.5,  0.5,
         ]);
 
-        this.offsets = new Float32Array(maxInstances * 2);
-        this.chunkIndices = new Uint32Array(maxInstances);
+        this.offsets = new Float32Array(MAX_INSTANCES * 2);
+        this.chunkIndices = new Uint32Array(MAX_INSTANCES);
 
         this.vao = gl.createVertexArray()!;
         gl.bindVertexArray(this.vao);
@@ -69,7 +71,7 @@ export class TerrainShader extends Shader {
 
         this.offsetBuffer = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.offsetBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 2 * 4, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, MAX_INSTANCES * 2 * 4, gl.DYNAMIC_DRAW);
         const locOffset = this.getAttribLocation('a_offset');
         gl.enableVertexAttribArray(locOffset);
         gl.vertexAttribPointer(locOffset, 2, gl.FLOAT, false, 0, 0);
@@ -77,7 +79,7 @@ export class TerrainShader extends Shader {
 
         this.chunkIndexBuffer = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.chunkIndexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4, gl.DYNAMIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, MAX_INSTANCES * 4, gl.DYNAMIC_DRAW);
         const locChunkIndex = this.getAttribLocation('a_chunkIndex');
         gl.enableVertexAttribArray(locChunkIndex);
         (gl).vertexAttribIPointer(locChunkIndex, 1, gl.UNSIGNED_INT, 0, 0);

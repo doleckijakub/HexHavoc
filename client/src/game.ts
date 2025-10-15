@@ -43,7 +43,7 @@ class Game {
 
         renderer.setClearColor(Color.hex('7F007F'));
         // TODO
-        renderer.setClearColor(Color.rgb(0, 0, 70));
+        // renderer.setClearColor(Color.rgb(0, 0, 70));
 
         ws.onopen = () => {
             this.send({
@@ -128,12 +128,22 @@ class Game {
         // hitboxes
 
         // for (let chunk of this.terrain.values()) {
-        //     hitboxShader.renderHitbox(chunk.position.x * 8, chunk.position.y * 8, 8, 8);
+        //     hitboxShader.renderHitbox(
+        //         chunk.position.x * 8 + 3.5,
+        //         chunk.position.y * 8 + 3.5,
+        //         8,
+        //         8
+        //     );
         // }
 
         for (let entity of this.entities.values()) {
             // TODO: switch (entity.type)
-            hitboxShader.renderHitbox(entity.position.x, entity.position.y, 0.8, 0.8);
+            hitboxShader.renderHitbox(
+                entity.position.x,
+                entity.position.y,
+                0.8,
+                0.8
+            );
         }
     }
 
@@ -161,20 +171,28 @@ class Game {
             const len = Math.hypot(dx, dy);
             dx /= len; dy /= len;
 
+            for (let loc of this.terrain.keys()) {
+                const [scx, scy] = loc.split(':');
+                
+                const [cx, cy] = [
+                    Number.parseInt(scx),
+                    Number.parseInt(scy)
+                ];
+
+                const [x, y] = [
+                    cx * 8 + 4,
+                    cy * 8 + 4
+                ];
+
+                if (Math.hypot(player.position.x - x, player.position.y - y) > 100) {
+                    this.terrain.delete(loc);
+                }
+            }
+
             player.position = new Vec2(
                 player.position.x + dx * dt * speed,
                 player.position.y + dy * dt * speed
             );
-
-            for (let loc of this.terrain.keys()) {
-                const [scx, scy] = loc.split(':');
-                const [cx, cy] = [Number.parseInt(scx), Number.parseInt(scy)];
-                const [x, y] = [cx * 8, cy * 8];
-
-                if (player.position.sub(new Vec2(x, y)).length() > 100) {
-                    this.terrain.delete(loc);
-                }
-            }
 
             this.send({
                 packet_type: 'entity_move',

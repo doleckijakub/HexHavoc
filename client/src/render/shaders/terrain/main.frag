@@ -60,6 +60,22 @@ void main() {
         return;
     }
 
+    //// non water tile blending
+    // float i = 1.0;
+    // if (!isWater(n))  { baseColor += u_tileColors[n];  i += 1.0; }
+    // if (!isWater(e))  { baseColor += u_tileColors[e];  i += 1.0; }
+    // if (!isWater(s))  { baseColor += u_tileColors[s];  i += 1.0; }
+    // if (!isWater(w))  { baseColor += u_tileColors[w];  i += 1.0; }
+    // if (!isWater(ne)) { baseColor += u_tileColors[ne]; i += 1.0; }
+    // if (!isWater(nw)) { baseColor += u_tileColors[nw]; i += 1.0; }
+    // if (!isWater(se)) { baseColor += u_tileColors[se]; i += 1.0; }
+    // if (!isWater(sw)) { baseColor += u_tileColors[sw]; i += 1.0; }
+
+    // baseColor /= i;
+    
+    // outColor = baseColor;
+    // return;
+
     vec2 f = fract(v_localPosTiles);
 
     float border = 0.1;

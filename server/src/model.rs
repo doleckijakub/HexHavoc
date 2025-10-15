@@ -72,11 +72,13 @@ pub type SharedState = Arc<Mutex<ServerState>>;
 
 fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
     let mut coords = vec![];
+
+    let chunk_size_f: f32 = CHUNK_SIZE as f32;
     
-    let start_y = (((position.y - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32).max(0);
-    let end_y   = (((position.y + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
-    let start_x = (((position.x - VIEW_RANGE) / CHUNK_SIZE as f32).floor() as i32).max(0);
-    let end_x   = (((position.x + VIEW_RANGE) / CHUNK_SIZE as f32).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
+    let start_y = (((position.y - VIEW_RANGE - chunk_size_f / 2.0) / chunk_size_f).floor() as i32).max(0);
+    let end_y   = (((position.y + VIEW_RANGE - chunk_size_f / 2.0) / chunk_size_f).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
+    let start_x = (((position.x - VIEW_RANGE - chunk_size_f / 2.0) / chunk_size_f).floor() as i32).max(0);
+    let end_x   = (((position.x + VIEW_RANGE - chunk_size_f / 2.0) / chunk_size_f).ceil() as i32).min(WORLD_SIZE / CHUNK_SIZE);
 
     for y in start_y..=end_y {
         for x in start_x..=end_x {
