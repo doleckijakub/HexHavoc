@@ -1,6 +1,6 @@
 import { Shader, type Renderer } from '@render';
 import { Color } from '@core';
-import { terrainTypeTypeToNumber, type TerrainChunk, type TerrainTileType, type TVec4 } from '@type';
+import { terrainTileTypeToNumber, type TerrainChunk, type TerrainTileType, type TVec4 } from '@type';
 
 import vert from './main.vert?raw';
 import frag from './main.frag?raw';
@@ -21,25 +21,29 @@ const TILE_COLORS: TVec4[] = [
     Color.rgb(180, 220, 255),
 ];
 
+const CHUNK_SIZE = 8;
+const TILE_SIZE = 1;
+
 export class TerrainShader extends Shader {
     private vao: WebGLVertexArrayObject;
 
     private offsets: Float32Array;
-    private scales: Float32Array;
-    private colors: Float32Array;
+    private chunkIndices: Uint32Array;
 
     private offsetBuffer: WebGLBuffer;
-    private scaleBuffer: WebGLBuffer;
-    private colorBuffer: WebGLBuffer;
+    private chunkIndexBuffer: WebGLBuffer;
 
-    constructor(private renderer: Renderer) {
+    private chunkTilemapTex: WebGLTexture | null = null;
+    private maxLayers: number;
+
+    constructor(private renderer: Renderer, maxInstances = 256, maxTextureLayers = 256) {
         super(renderer.getContext(), vert, frag);
 
         this.use();
 
         const gl = this.gl;
 
-        const maxInstances = 65536;
+        this.maxLayers = Math.max(1, maxTextureLayers);
 
         const unitQuad = new Float32Array([
             -0.5, -0.5,
@@ -51,8 +55,7 @@ export class TerrainShader extends Shader {
         ]);
 
         this.offsets = new Float32Array(maxInstances * 2);
-        this.scales  = new Float32Array(maxInstances * 2);
-        this.colors  = new Float32Array(maxInstances * 4);
+        this.chunkIndices = new Uint32Array(maxInstances);
 
         this.vao = gl.createVertexArray()!;
         gl.bindVertexArray(this.vao);
@@ -72,64 +75,151 @@ export class TerrainShader extends Shader {
         gl.vertexAttribPointer(locOffset, 2, gl.FLOAT, false, 0, 0);
         gl.vertexAttribDivisor(locOffset, 1);
 
-        this.scaleBuffer = gl.createBuffer()!;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.scaleBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 2 * 4, gl.DYNAMIC_DRAW);
-        const locScale = this.getAttribLocation('a_scale');
-        gl.enableVertexAttribArray(locScale);
-        gl.vertexAttribPointer(locScale, 2, gl.FLOAT, false, 0, 0);
-        gl.vertexAttribDivisor(locScale, 1);
+        this.chunkIndexBuffer = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.chunkIndexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4, gl.DYNAMIC_DRAW);
+        const locChunkIndex = this.getAttribLocation('a_chunkIndex');
+        gl.enableVertexAttribArray(locChunkIndex);
+        (gl).vertexAttribIPointer(locChunkIndex, 1, gl.UNSIGNED_INT, 0, 0);
+        gl.vertexAttribDivisor(locChunkIndex, 1);
 
-        this.colorBuffer = gl.createBuffer()!;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, maxInstances * 4 * 4, gl.DYNAMIC_DRAW);
-        const locColor = this.getAttribLocation('a_color');
-        gl.enableVertexAttribArray(locColor);
-        gl.vertexAttribPointer(locColor, 4, gl.FLOAT, false, 0, 0);
-        gl.vertexAttribDivisor(locColor, 1);
+        this.chunkTilemapTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.chunkTilemapTex);
+
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texImage3D(
+            gl.TEXTURE_2D_ARRAY,
+            0,
+            gl.R8UI,
+            CHUNK_SIZE + 2,
+            CHUNK_SIZE + 2,
+            this.maxLayers,
+            0,
+            gl.RED_INTEGER,
+            gl.UNSIGNED_BYTE,
+            null
+        );
+
+        const zero = new Uint8Array((CHUNK_SIZE + 2) * (CHUNK_SIZE + 2));
+        for (let layer = 0; layer < this.maxLayers; layer++) {
+            gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+            gl.texSubImage3D(
+                gl.TEXTURE_2D_ARRAY,
+                0,
+                0, 0, layer,
+                CHUNK_SIZE + 2, CHUNK_SIZE + 2, 1,
+                gl.RED_INTEGER,
+                gl.UNSIGNED_BYTE,
+                zero
+            );
+        }
 
         gl.bindVertexArray(null);
+
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        const locSampler = this.getUniformLocation('u_chunkTiles');
+        gl.uniform1i(locSampler, 0);
+
+        const flatColors = new Float32Array(TILE_COLORS.length * 4);
+        for (let i = 0; i < TILE_COLORS.length; i++) {
+            const c = TILE_COLORS[i];
+            flatColors[i * 4 + 0] = c[0];
+            flatColors[i * 4 + 1] = c[1];
+            flatColors[i * 4 + 2] = c[2];
+            flatColors[i * 4 + 3] = c[3];
+        }
+        const locTileColors = this.getUniformLocation('u_tileColors');
+        gl.uniform4fv(locTileColors, flatColors);
 
         this.finish();
     }
 
-    renderTerrain(chunks: TerrainChunk[]) {
+    updateChunkLayer(layerIndex: number, textureSize: number, data: Uint8Array) {
+        if (!this.chunkTilemapTex) return;
+        if (layerIndex < 0 || layerIndex >= this.maxLayers) throw new Error('layerIndex out of range');
+
+        const gl = this.gl;
+
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.chunkTilemapTex);
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        gl.texSubImage3D(
+            gl.TEXTURE_2D_ARRAY,
+            0,
+            0, 0, layerIndex,
+            textureSize, textureSize, 1,
+            gl.RED_INTEGER,
+            gl.UNSIGNED_BYTE,
+            data
+        );
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, null);
+    }
+
+    renderTerrain(terrain: Map<String, TerrainChunk>) {
         this.use();
 
         const gl = this.gl;
 
-        const TILE_SIZE = 1;
-        const CHUNK_SIZE = 8;
-
         let I = 0;
-        for (const chunk of chunks) {
-            for (let i = 0; i < chunk.contents.length; i++, I++) {
-                const tileType = chunk.contents[i];
+        for (const loc of terrain.keys()) {
+            const chunk = terrain.get(loc);
 
-                const localX = i % CHUNK_SIZE;
-                const localY = Math.floor(i / CHUNK_SIZE);
+            this.offsets[I * 2 + 0] = chunk!.position.x * CHUNK_SIZE;
+            this.offsets[I * 2 + 1] = chunk!.position.y * CHUNK_SIZE;
 
-                this.offsets[I * 2 + 0] = chunk.position.x * CHUNK_SIZE + localX;
-                this.offsets[I * 2 + 1] = chunk.position.y * CHUNK_SIZE + localY;
+            this.chunkIndices[I] = I; //  >>> 0;
 
-                this.scales[I * 2 + 0] = TILE_SIZE;
-                this.scales[I * 2 + 1] = TILE_SIZE;
+            const buffer = new Uint8Array((CHUNK_SIZE + 2) * (CHUNK_SIZE + 2));
 
-                this.colors.set(TILE_COLORS[terrainTypeTypeToNumber(tileType)], I * 4);
+            let i = 0;
+            for (let y = -1; y <= CHUNK_SIZE; y++) {
+                for (let x = -1; x <= CHUNK_SIZE; x++, i++) {
+                    const [cxs, cys] = loc.split(':');
+                    const [cx, cy] = [parseInt(cxs), parseInt(cys)];
+
+                    const [rcx, rcy] = [
+                        cx + (x === -1 ? -1 : x === CHUNK_SIZE ? 1 : 0),
+                        cy + (y === -1 ? -1 : y === CHUNK_SIZE ? 1 : 0),
+                    ];
+
+                    const c = terrain.get(`${rcx}:${rcy}`);
+
+                    const [rx, ry] = [
+                        (CHUNK_SIZE + x) % CHUNK_SIZE,
+                        (CHUNK_SIZE + y) % CHUNK_SIZE,
+                    ];
+
+                    const j = rx + ry * CHUNK_SIZE;
+                    const terrainTileType = c?.contents[j] ?? 'Ice';
+
+                    buffer[i] = terrainTileTypeToNumber(terrainTileType);
+                }
             }
+
+            this.updateChunkLayer(I, CHUNK_SIZE + 2, buffer);
+
+            I++;
         }
 
         const instanceCount = I;
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.offsetBuffer);
         gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.offsets.subarray(0, instanceCount * 2));
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.scaleBuffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.scales.subarray(0, instanceCount * 2));
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colors.subarray(0, instanceCount * 4));
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.chunkIndexBuffer);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.chunkIndices.subarray(0, instanceCount));
 
         const vp = this.renderer.getCameraMatrix();
         gl.uniformMatrix3fv(this.getUniformLocation("u_vp"), false, vp.arr());
+
+        gl.uniform1f(this.getUniformLocation('u_tileSize'), TILE_SIZE);
+        gl.uniform1i(this.getUniformLocation('u_chunkSize'), CHUNK_SIZE);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.chunkTilemapTex);
 
         gl.bindVertexArray(this.vao);
         gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, instanceCount);

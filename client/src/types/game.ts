@@ -15,7 +15,7 @@ export type TerrainTileType =
     "Swamp" |
     "Ice";
 
-export function terrainTypeTypeToNumber(ttt: TerrainTileType): number {
+export function terrainTileTypeToNumber(ttt: TerrainTileType): number {
     return {
         DeepWater: 0,
         Water: 1,

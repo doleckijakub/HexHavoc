@@ -12,12 +12,14 @@ import { Color, Vec2, type Entity } from '@core';
 
 import { PlayerShader } from '@render/shaders/player/PlayerShader';
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
+import { HitboxShader } from '@render/hitbox/HitboxShader';
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
 
 const playerShader = new PlayerShader(renderer);
 const terrainShader = new TerrainShader(renderer);
+const hitboxShader = new HitboxShader(renderer);
 
 class Game {
     private ws: WebSocket;
@@ -106,20 +108,32 @@ class Game {
     private render(now: number) {
         renderer.clear();
 
-        renderer.setCameraScale(Number.parseFloat(this.scaleSlider.value!));
-
         if (!this.playerId) return;
 
         const player = this.entities.get(this.playerId);
         if (!player) return;
 
         renderer.setCameraPosition(player.position);
+        renderer.setCameraScale(Number.parseFloat(this.scaleSlider.value!));
 
-        terrainShader.renderTerrain(Array.from(this.terrain.values()));
+        // render
+
+        terrainShader.renderTerrain(this.terrain);
 
         for (let entity of this.entities.values()) {
             // TODO: switch (entity.type)
             playerShader.renderPlayer(entity);
+        }
+
+        // hitboxes
+
+        // for (let chunk of this.terrain.values()) {
+        //     hitboxShader.renderHitbox(chunk.position.x * 8, chunk.position.y * 8, 8, 8);
+        // }
+
+        for (let entity of this.entities.values()) {
+            // TODO: switch (entity.type)
+            hitboxShader.renderHitbox(entity.position.x, entity.position.y, 0.8, 0.8);
         }
     }
 
