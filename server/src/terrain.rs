@@ -57,8 +57,8 @@ pub enum TileType {
     Ice,
 }
 
-const ELEV_NOISE_SCALE: f64   = 0.08;
-const OTHER_NOISES_SCALE: f64 = 0.05;
+const ELEV_NOISE_SCALE: f64   = 0.04;
+const OTHER_NOISES_SCALE: f64 = 0.01;
 
 const DEEP_SEA_LEVEL: f64 = 0.40;
 const SEA_LEVEL: f64      = 0.45;

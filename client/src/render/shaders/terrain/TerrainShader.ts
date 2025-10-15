@@ -217,6 +217,7 @@ export class TerrainShader extends Shader {
         const vp = this.renderer.getCameraMatrix();
         gl.uniformMatrix3fv(this.getUniformLocation("u_vp"), false, vp.arr());
 
+        gl.uniform1f(this.getUniformLocation('u_time'), performance.now() / 1000);
         gl.uniform1f(this.getUniformLocation('u_tileSize'), TILE_SIZE);
         gl.uniform1i(this.getUniformLocation('u_chunkSize'), CHUNK_SIZE);
 

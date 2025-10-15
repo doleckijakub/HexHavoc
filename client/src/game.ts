@@ -12,7 +12,7 @@ import { Color, Vec2, type Entity } from '@core';
 
 import { PlayerShader } from '@render/shaders/player/PlayerShader';
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
-import { HitboxShader } from '@render/hitbox/HitboxShader';
+import { HitboxShader } from '@render/shaders/hitbox/HitboxShader';
 import { TextShader } from '@render/shaders/text/TextShader';
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
@@ -166,7 +166,7 @@ class Game {
         this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
         this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
 
-        const speed = this.keyboardState["ShiftLeft"] ? 50 : 5;
+        const speed = this.keyboardState["ShiftLeft"] ? 80 : 8;
 
         let dx = 0, dy = 0;
         if (this.keyboardState["KeyW"]) dy += 1;
