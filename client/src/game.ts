@@ -13,6 +13,7 @@ import { Color, Vec2, type Entity } from '@core';
 import { PlayerShader } from '@render/shaders/player/PlayerShader';
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 import { HitboxShader } from '@render/hitbox/HitboxShader';
+import { TextShader } from '@render/shaders/text/TextShader';
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
@@ -20,6 +21,7 @@ const renderer = new Renderer(canvas);
 const playerShader = new PlayerShader(renderer);
 const terrainShader = new TerrainShader(renderer);
 const hitboxShader = new HitboxShader(renderer);
+const textShader = new TextShader(renderer);
 
 class Game {
     private ws: WebSocket;
@@ -123,6 +125,11 @@ class Game {
         for (let entity of this.entities.values()) {
             // TODO: switch (entity.type)
             playerShader.renderPlayer(entity);
+        }
+
+        for (let entity of this.entities.values()) {
+            // TODO: switch (entity.type)
+            textShader.renderText(entity.value.player.username, entity.position.x, entity.position.y + 1);
         }
 
         // hitboxes

@@ -4,7 +4,8 @@ export class EntityTypePlayer {
     username: string;
 };
 
-export type EntityType = EntityTypePlayer;
+export type EntityType =
+    { player: EntityTypePlayer };
 
 export class Entity {
     id: string;
