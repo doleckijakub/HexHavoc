@@ -130,14 +130,6 @@ impl Game {
         }
     }
 
-    pub fn get_tile(&self, x: i32, y: i32) -> TileType {
-        self.terrain_generator.get_tile(x as f64, y as f64)
-    }
-
-    pub fn get_entity(&self, x: i32, y: i32) -> Option<Entity> {
-        self.terrain_generator.get_entity(x as f64, y as f64)
-    }
-
     pub fn get_new_spawn_location(&self) -> Vec2 {
         const NO_SPAWN_BORDER: i32 = WATER_EDGE_SIZE * 2;
 
@@ -147,40 +139,39 @@ impl Game {
             let x = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE - NO_SPAWN_BORDER);
             let y = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE - NO_SPAWN_BORDER);
 
-            match self.get_tile(x, y) {
-                TileType::Water | TileType::DeepWater => continue,
+            match self.terrain_generator.get_contents(x, y) {
+                (TileType::Water | TileType::DeepWater, _) => continue,
+                (_, Some(_)) => continue,
                 _ => return Vec2::new(x as f32, y as f32),
             }
         }
     }
 
-    pub fn get_chunk(&self, x: i32, y: i32) -> TerrainChunk {
-        let mut contents = vec![];
+    pub fn get_chunk_data(&self, x: i32, y: i32) -> (TerrainChunk, Vec<Entity>) {
+        let mut tiles = vec![];
+        let mut entities = vec![];
 
         for cy in 0..CHUNK_SIZE {
             for cx in 0..CHUNK_SIZE {
-                contents.push(self.get_tile(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy));
-            }
-        }
+                let tile_data = self
+                    .terrain_generator
+                    .get_contents(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy);
 
-        TerrainChunk {
-            position: Vec2::new(x as f32, y as f32),
-            contents,
-        }
-    }
+                tiles.push(tile_data.0);
 
-    pub fn get_world_entities(&self, x: i32, y: i32) -> Vec<Entity> {
-        let mut contents = vec![];
-
-        for cy in 0..CHUNK_SIZE {
-            for cx in 0..CHUNK_SIZE {
-                if let Some(entity) = self.get_entity(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy) {
-                    contents.push(entity);
+                if let Some(entity) = tile_data.1 {
+                    entities.push(entity);
                 }
             }
         }
 
-        contents
+        (
+            TerrainChunk {
+                position: Vec2::new(x as f32, y as f32),
+                contents: tiles,
+            },
+            entities,
+        )
     }
 }
 
@@ -293,12 +284,7 @@ impl Client {
 
                 let chunk_data: Vec<_> = chunk_coords
                     .into_iter()
-                    .map(|(x, y)| {
-                        (
-                            game_guard.get_chunk(x, y),
-                            game_guard.get_world_entities(x, y),
-                        )
-                    })
+                    .map(|(x, y)| game_guard.get_chunk_data(x, y))
                     .collect();
 
                 for (chunk, entities) in chunk_data {
@@ -376,12 +362,7 @@ impl Client {
                     let game_guard = game.lock().await;
                     chunk_coords
                         .into_iter()
-                        .map(|(x, y)| {
-                            (
-                                game_guard.get_chunk(x, y),
-                                game_guard.get_world_entities(x, y),
-                            )
-                        })
+                        .map(|(x, y)| game_guard.get_chunk_data(x, y))
                         .collect()
                 };
 

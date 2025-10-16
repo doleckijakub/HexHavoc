@@ -92,7 +92,7 @@ impl TerrainGenerator {
         }
     }
 
-    pub fn get_tile_from_environment(&self, e: f64, t: f64, h: f64) -> TileType {
+    fn get_tile_from_environment(&self, e: f64, t: f64, h: f64) -> TileType {
         match (t, h) {
             // Hot, Dry
             (t, h) if t > 0.55 && h < 0.5 => TileType::Desert,
@@ -121,7 +121,7 @@ impl TerrainGenerator {
         }
     }
 
-    pub fn get_tile(&self, x: f64, y: f64) -> TileType {
+    fn get_tile(&self, x: f64, y: f64) -> TileType {
         const HWF: f64 = WORLD_SIZE as f64 / 2.0;
         const WATER_EDGE_SIZE_F: f64 = WATER_EDGE_SIZE as f64;
 
@@ -157,12 +157,12 @@ impl TerrainGenerator {
         self.entity_noise.get(x, y) < WORLD_ENTITY_SPAWN_RATE
     }
 
-    pub fn get_entity(&self, x: f64, y: f64) -> Option<Entity> {
+    fn get_entity_from_tile(&self, x: f64, y: f64, tile: TileType) -> Option<Entity> {
         if !self.should_spawn_entity(x, y) {
             return None;
         }
 
-        let entity_type = match self.get_tile(x, y) {
+        let entity_type = match tile {
             TileType::Forest => Some(EntityType::ForestTree),
             _ => None,
         };
@@ -176,6 +176,16 @@ impl TerrainGenerator {
         }
 
         None
+    }
+
+    pub fn get_contents(&self, x: i32, y: i32) -> (TileType, Option<Entity>) {
+        let x = x as f64;
+        let y = y as f64;
+
+        let tile = self.get_tile(x, y);
+        let entity = self.get_entity_from_tile(x, y, tile);
+
+        (tile, entity)
     }
 }
 
