@@ -1,5 +1,5 @@
 import type { Vec2 } from '@core/Vec2';
-import type { Entity, EntityType } from '@core/Entity';
+import type { EntityType } from '@core/Entity';
 import type { TerrainChunk } from '@type/game';
 
 export interface EntityMovePacket {
@@ -8,7 +8,7 @@ export interface EntityMovePacket {
     new_position: Vec2,
 }
 
-export interface TerrainChunkPacket { // sent whenever the player "loads it"
+export interface TerrainChunkPacket {
     packet_type: 'terrain_chunk',
     chunk: TerrainChunk,
 }

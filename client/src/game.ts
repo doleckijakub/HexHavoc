@@ -105,38 +105,37 @@ class Game {
                 const position = Vec2.from(entityData['position']);
                 const value = entityData['value'];
 
+                let entity: EntityType;
+
                 if (typeof value === 'string') {
-                    return {
-                        packet_type,
-                        entity: <EntityType> {
-                            id,
-                            position,
-                            entity_type: value
-                        }
+                    entity = <EntityType> {
+                        id,
+                        position,
+                        entity_type: value
                     };
-                }
-
-                const entity_type = Object.keys(value)[0];
-
-                console.log('value', value);
-                console.log('entity_type', entity_type);
-
-                return {
-                    packet_type,
-                    entity: <EntityType> {
+                } else {
+                    const entity_type = Object.keys(value)[0];
+                    entity = <EntityType> {
                         id,
                         position,
                         entity_type,
                         ...value[entity_type]
-                    }
+                    };
                 }
+
+                return {
+                    packet_type,
+                    entity
+                };
             }
             case 'entity_move': return {
                 packet_type,
-                id: data['id']
+                id: data['id'],
+                new_position: Vec2.from(data['new_position']),
             }
-            default: throw new Error(`Do not know how to parse packet of type "${packet_type}"`);
         }
+
+        throw new Error(`Do not know how to parse packet of type "${packet_type}"`);
     }
 
     private onEntityLoad(packet: EntityLoadPacket) {
@@ -199,12 +198,12 @@ class Game {
         terrainShader.renderTerrain(this.terrain);
 
         for (let entity of Array.from(this.entities.values()).sort((e1, e2) => e2.position.y - e1.position.y)) {
-            const { id, position: { x, y }, entity_type } = entity;
+            const { entity_type, position: { x, y } } = entity;
 
             switch (entity_type) {
                 case 'player': playerShader.renderPlayer(entity); break;
                 case 'forest_tree': spriteShader.renderSprite(x, y, 0, 2, 16); break;
-                default: console.log('entity', entity); throw new Error(`Do not know how to render entity of type "${entity_type}"`); break;
+                default: throw new Error(`Do not know how to render entity of type "${entity_type}"`);
             }
         }
 
@@ -283,7 +282,9 @@ class Game {
             }
 
             for (let id of this.entities.keys()) {
-                const { position: { x, y } } = this.entities.get(id)!;
+                const { entity_type, position: { x, y } } = this.entities.get(id)!;
+                
+                if (entity_type == 'player') continue; // TODO: actually remove // TODO(server): recieve back upon load
 
                 if (Math.hypot(player.position.x - x, player.position.y - y) > 100) {
                     this.entities.delete(id);
