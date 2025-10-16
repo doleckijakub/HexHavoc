@@ -1,5 +1,5 @@
 use actix_files::NamedFile;
-use actix_web::{get, web, HttpRequest, HttpResponse, Responder, Result};
+use actix_web::{HttpRequest, HttpResponse, Responder, Result, get, web};
 
 use crate::model::SharedState;
 
@@ -10,11 +10,11 @@ async fn game(
     state: web::Data<SharedState>,
 ) -> Result<impl Responder> {
     let name = name.into_inner();
-    let state = state.lock().unwrap();
+    let state = state.lock().await;
 
-    if state.game_ids_by_name.get(&name).is_some() {
+    if state.game_ids_by_name.contains_key(&name) {
         let file = NamedFile::open_async("./client/dist/game.html").await?;
-        
+
         Ok(file.into_response(&req))
     } else {
         Ok(HttpResponse::SeeOther()
@@ -22,7 +22,6 @@ async fn game(
                 "Location",
                 format!("/?error=game-not-found&game_name={name}"),
             ))
-            .finish()
-            .into())
+            .finish())
     }
 }

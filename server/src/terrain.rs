@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::config::*;
-use crate::model::{Vec2, EntityType, Entity};
+use crate::model::{Entity, EntityType, Vec2};
 
 pub struct OctavedNoise {
     base: OpenSimplex,
@@ -31,7 +31,10 @@ impl OctavedNoise {
         let mut max_amplitude = 0.0;
 
         for _ in 0..self.octaves {
-            total += self.base.get([x * self.scale * frequency, y * self.scale * frequency]) * amplitude;
+            total += self
+                .base
+                .get([x * self.scale * frequency, y * self.scale * frequency])
+                * amplitude;
             max_amplitude += amplitude;
             amplitude *= self.persistence;
             frequency *= self.lacunarity;
@@ -63,8 +66,8 @@ const ENV_NOISE_SCALE: f64 = 0.01;
 const ENTITY_NOISE_SCALE: f64 = 1.0;
 
 const DEEP_SEA_LEVEL: f64 = 0.40;
-const SEA_LEVEL: f64      = 0.45;
-const BEACH_LEVEL: f64    = 0.48;
+const SEA_LEVEL: f64 = 0.45;
+const BEACH_LEVEL: f64 = 0.48;
 
 pub struct TerrainGenerator {
     elev_noise: OctavedNoise,
@@ -79,7 +82,13 @@ impl TerrainGenerator {
             elev_noise: OctavedNoise::new(seed, 5, 0.5, 2.0, ELEV_NOISE_SCALE),
             temp_noise: OctavedNoise::new(seed.wrapping_add(420), 3, 0.5, 4.0, ENV_NOISE_SCALE),
             humid_noise: OctavedNoise::new(seed.wrapping_add(1337), 3, 0.5, 4.0, ENV_NOISE_SCALE),
-            entity_noise: OctavedNoise::new(seed.wrapping_add(6969), 4, 0.5, 2.0, ENTITY_NOISE_SCALE),
+            entity_noise: OctavedNoise::new(
+                seed.wrapping_add(6969),
+                4,
+                0.5,
+                2.0,
+                ENTITY_NOISE_SCALE,
+            ),
         }
     }
 
@@ -102,7 +111,13 @@ impl TerrainGenerator {
             // Cold
             (t, h) if t > 0.1 && h < 0.1 => TileType::Tundra,
 
-            _ => if e > 0.55 { TileType::Ice } else { TileType::Snow },
+            _ => {
+                if e > 0.55 {
+                    TileType::Ice
+                } else {
+                    TileType::Snow
+                }
+            }
         }
     }
 
@@ -112,14 +127,24 @@ impl TerrainGenerator {
 
         let mut e = self.elev_noise.get(x, y);
         let s = (x - HWF).abs().max((y - HWF).abs()) - HWF + WATER_EDGE_SIZE_F;
-        if s > 0.0 { e -= s / WATER_EDGE_SIZE_F; }
+        if s > 0.0 {
+            e -= s / WATER_EDGE_SIZE_F;
+        }
 
         let mut t = self.temp_noise.get(x, y);
         t = (t - (e - BEACH_LEVEL) * 0.6).clamp(0.0, 1.0);
 
-        if e < DEEP_SEA_LEVEL { return TileType::DeepWater };
-        if e < SEA_LEVEL { return TileType::Water };
-        if e < BEACH_LEVEL { return TileType::Beach };
+        if e < DEEP_SEA_LEVEL {
+            return TileType::DeepWater;
+        };
+
+        if e < SEA_LEVEL {
+            return TileType::Water;
+        };
+
+        if e < BEACH_LEVEL {
+            return TileType::Beach;
+        };
 
         let mut h = self.humid_noise.get(x, y);
         let humidity_from_water = (1.0 - (e - SEA_LEVEL).abs() * 5.0).clamp(0.0, 1.0);
@@ -133,18 +158,20 @@ impl TerrainGenerator {
     }
 
     pub fn get_entity(&self, x: f64, y: f64) -> Option<Entity> {
-        if !self.should_spawn_entity(x, y) { return None; }
+        if !self.should_spawn_entity(x, y) {
+            return None;
+        }
 
         let entity_type = match self.get_tile(x, y) {
             TileType::Forest => Some(EntityType::ForestTree),
-            _ => None
+            _ => None,
         };
 
         if let Some(ty) = entity_type {
             return Some(Entity::new(
                 Uuid::new_v4(),
                 Vec2::new(x as f32, y as f32),
-                ty
+                ty,
             ));
         }
 

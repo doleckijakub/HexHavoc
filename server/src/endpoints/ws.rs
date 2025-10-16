@@ -1,7 +1,8 @@
-use actix_web::{rt, web, get, Error, HttpRequest, HttpResponse};
+use actix_web::{Error, HttpRequest, HttpResponse, get, rt, web};
 use actix_ws::Message;
 use futures_util::StreamExt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::model::{Client, SharedState};
@@ -24,9 +25,9 @@ async fn ws(
             game: None,
         };
 
-        client.log("Connected");
+        client.log("Connected").await;
 
-        let mut locked_state = state.lock().unwrap();
+        let mut locked_state = state.lock().await;
         locked_state.clients.insert(id, client);
     }
 
@@ -36,36 +37,40 @@ async fn ws(
                 Ok(Message::Text(text)) => {
                     if let Ok(packet) = serde_json::from_str::<Packet>(&text) {
                         let client_opt = {
-                            let locked_state = state.lock().unwrap();
+                            let locked_state = state.lock().await;
                             locked_state.clients.get(&id).cloned()
                         };
 
                         if let Some(mut client) = client_opt {
-                            let mut locked_state = state.lock().unwrap();
+                            let mut locked_state = state.lock().await;
                             client.recv(packet, &mut locked_state).await;
                         } else {
                             eprintln!("[WS] Missing client {}", id);
                         }
                     } else {
-                        let locked_state = state.lock().unwrap();
-                        if let Some(client) = locked_state.clients.get(&id) && text.len() != 0 {
-                            client.elog(format!("Sent an unparsable packet: {}", text));
+                        let locked_state = state.lock().await;
+                        if let Some(client) = locked_state.clients.get(&id)
+                            && !text.is_empty()
+                        {
+                            client
+                                .elog(format!("Sent an unparsable packet: {}", text))
+                                .await;
                         }
                     }
                 }
 
                 Ok(Message::Ping(msg)) => {
-                    let locked_state = state.lock().unwrap();
+                    let locked_state = state.lock().await;
                     if let Some(client) = locked_state.clients.get(&id) {
-                        let mut ws = client.ws_session.lock().unwrap();
+                        let mut ws = client.ws_session.lock().await;
                         ws.pong(&msg).await.ok();
                     }
                 }
 
                 Ok(Message::Close(_)) | Err(_) => {
-                    let mut locked_state = state.lock().unwrap();
+                    let mut locked_state = state.lock().await;
                     if let Some(client) = locked_state.clients.remove(&id) {
-                        client.log("Disconnected");
+                        client.log("Disconnected").await;
                     }
                 }
 

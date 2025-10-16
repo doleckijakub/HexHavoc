@@ -1,8 +1,7 @@
 use actix_files::Files;
-use actix_web::{web, App, HttpServer};
-use std::{
-    sync::{Arc, Mutex},
-};
+use actix_web::{App, HttpServer, web};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub mod config;
 pub mod model;
@@ -10,8 +9,8 @@ pub mod packet;
 pub mod terrain;
 
 pub mod endpoints {
-    pub mod new_game;
     pub mod game;
+    pub mod new_game;
     pub mod ws;
 }
 
@@ -24,7 +23,7 @@ async fn main() -> std::io::Result<()> {
 
     println!("Starting HexHavoc on http://{address}:{port}");
 
-    let state: SharedState = Arc::new(Mutex::new(ServerState::new()));
+    let state: SharedState = Arc::new(Mutex::new(ServerState::default()));
 
     HttpServer::new(move || {
         App::new()
