@@ -7,6 +7,10 @@ export class Vec2 {
         this.y = y;
     }
 
+    static from(s: { x: number, y: number }): Vec2 {
+        return new Vec2(s.x, s.y);
+    }
+
     add(other: Vec2): Vec2 {
         return new Vec2(this.x + other.x, this.y + other.y);
     }

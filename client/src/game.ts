@@ -8,12 +8,26 @@ import type {
 } from '@type';
 
 import { Renderer } from '@render';
-import { Color, Vec2, type Entity } from '@core';
+import { Color, Vec2, type EntityType } from '@core';
 
 import { PlayerShader } from '@render/shaders/player/PlayerShader';
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 import { HitboxShader } from '@render/shaders/hitbox/HitboxShader';
 import { TextShader } from '@render/shaders/text/TextShader';
+import { SpriteShader } from '@render/shaders/sprite/SpriteShader';
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.src = src;
+        img.onload = () => resolve(img);
+        img.onerror = (err) => reject(err);
+    });
+}
+
+import tilemapSrc from './textures/tilemap.png';
+import { stringify } from 'querystring';
+const tilemap = await loadImage(tilemapSrc);
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
@@ -22,13 +36,14 @@ const playerShader = new PlayerShader(renderer);
 const terrainShader = new TerrainShader(renderer);
 const hitboxShader = new HitboxShader(renderer);
 const textShader = new TextShader(renderer);
+const spriteShader = new SpriteShader(renderer, tilemap);
 
 class Game {
     private ws: WebSocket;
     private keyboardState: Record<string, boolean> = {};
 
     private playerId?: string;
-    private entities: Map<string, Entity> = new Map();
+    private entities: Map<string, EntityType> = new Map();
     private terrain: Map<string, TerrainChunk> = new Map();
 
     private lastLoopTimestamp: number;
@@ -55,12 +70,73 @@ class Game {
             });
         };
 
-        ws.onmessage = ev => this.recv(JSON.parse(ev.data));
+        ws.onmessage = ev => this.recv(this.parsePacket(ev));
 
         ws.onclose = console.warn;
         ws.onerror = console.error;
 
         this.ws = ws;
+    }
+
+    private parsePacket(ev: MessageEvent<any>): Packet {
+        const data = JSON.parse(ev.data);
+        const packet_type = data['packet_type']; 
+
+        switch (packet_type) {
+            case 'player_registered': return {
+                packet_type,
+                id: data['id']
+            };
+            case 'terrain_chunk': {
+                const chunkData = data['chunk'];
+
+                return {
+                    packet_type,
+                    chunk: {
+                        position: Vec2.from(chunkData['position']),
+                        contents: chunkData['contents']
+                    }
+                };
+            }
+            case 'entity_load': {
+                const entityData = data['entity'];
+
+                const id = entityData['id'];
+                const position = Vec2.from(entityData['position']);
+                const value = entityData['value'];
+
+                if (typeof value === 'string') {
+                    return {
+                        packet_type,
+                        entity: <EntityType> {
+                            id,
+                            position,
+                            entity_type: value
+                        }
+                    };
+                }
+
+                const entity_type = Object.keys(value)[0];
+
+                console.log('value', value);
+                console.log('entity_type', entity_type);
+
+                return {
+                    packet_type,
+                    entity: <EntityType> {
+                        id,
+                        position,
+                        entity_type,
+                        ...value[entity_type]
+                    }
+                }
+            }
+            case 'entity_move': return {
+                packet_type,
+                id: data['id']
+            }
+            default: throw new Error(`Do not know how to parse packet of type "${packet_type}"`);
+        }
     }
 
     private onEntityLoad(packet: EntityLoadPacket) {
@@ -122,14 +198,24 @@ class Game {
 
         terrainShader.renderTerrain(this.terrain);
 
-        for (let entity of this.entities.values()) {
-            // TODO: switch (entity.type)
-            playerShader.renderPlayer(entity);
+        for (let entity of Array.from(this.entities.values()).sort((e1, e2) => e2.position.y - e1.position.y)) {
+            const { id, position: { x, y }, entity_type } = entity;
+
+            switch (entity_type) {
+                case 'player': playerShader.renderPlayer(entity); break;
+                case 'forest_tree': spriteShader.renderSprite(x, y, 0, 2, 16); break;
+                default: console.log('entity', entity); throw new Error(`Do not know how to render entity of type "${entity_type}"`); break;
+            }
         }
 
         for (let entity of this.entities.values()) {
-            // TODO: switch (entity.type)
-            textShader.renderText(entity.value.player.username, entity.position.x, entity.position.y + 1);
+            if (entity.entity_type != 'player') continue;
+
+            if (entity.id != this.playerId) textShader.renderText(
+                entity.username,
+                entity.position.x,
+                entity.position.y + 1
+            );
         }
 
         // hitboxes
@@ -143,15 +229,15 @@ class Game {
         //     );
         // }
 
-        for (let entity of this.entities.values()) {
-            // TODO: switch (entity.type)
-            hitboxShader.renderHitbox(
-                entity.position.x,
-                entity.position.y,
-                0.8,
-                0.8
-            );
-        }
+        // for (let entity of this.entities.values()) {
+        //     // TODO: switch (entity.type)
+        //     hitboxShader.renderHitbox(
+        //         entity.position.x,
+        //         entity.position.y,
+        //         0.8,
+        //         0.8
+        //     );
+        // }
     }
 
     private update(now: number) {
@@ -163,7 +249,7 @@ class Game {
         const dt = (now - this.lastLoopTimestamp) / 1000;
         this.lastLoopTimestamp = now;
 
-        this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
+        if (Math.floor(now / 10) % 10 == 0) this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
         this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
 
         const speed = this.keyboardState["ShiftLeft"] ? 80 : 8;
@@ -193,6 +279,14 @@ class Game {
 
                 if (Math.hypot(player.position.x - x, player.position.y - y) > 100) {
                     this.terrain.delete(loc);
+                }
+            }
+
+            for (let id of this.entities.keys()) {
+                const { position: { x, y } } = this.entities.get(id)!;
+
+                if (Math.hypot(player.position.x - x, player.position.y - y) > 100) {
+                    this.entities.delete(id);
                 }
             }
 

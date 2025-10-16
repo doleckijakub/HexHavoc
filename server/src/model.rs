@@ -34,7 +34,10 @@ pub struct EntityPlayer {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum EntityType {
     #[serde(rename = "player")]
-    Player(EntityPlayer)
+    Player(EntityPlayer),
+
+    #[serde(rename = "forest_tree")]
+    ForestTree,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -90,12 +93,16 @@ fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
 }
 
 impl Entity {
-    fn player(id: Uuid, position: Vec2, username: String) -> Self {
+    pub fn new(id: Uuid, position: Vec2, value: EntityType) -> Self {
         Self {
             id,
             position,
-            value: EntityType::Player(EntityPlayer { username })
+            value
         }
+    }
+
+    pub fn player(id: Uuid, position: Vec2, username: String) -> Self {
+        Self::new(id, position, EntityType::Player(EntityPlayer { username }))
     }
 }
 
@@ -119,6 +126,10 @@ impl Game {
 
     pub fn get_tile(&self, x: i32, y: i32) -> TileType {
         self.terrain_generator.get_tile(x as f64, y as f64)
+    }
+
+    pub fn get_entity(&self, x: i32, y: i32) -> Option<Entity> {
+        self.terrain_generator.get_entity(x as f64, y as f64)
     }
 
     pub fn get_new_spawn_location(&self) -> Vec2 {
@@ -151,6 +162,20 @@ impl Game {
             position: Vec2::new(x as f32, y as f32),
             contents,
         }
+    }
+
+    pub fn get_world_entities(&self, x: i32, y: i32) -> Vec<Entity> {
+        let mut contents = vec![];
+
+        for cy in 0..CHUNK_SIZE {
+            for cx in 0..CHUNK_SIZE {
+                if let Some(entity) = self.get_entity(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy) {
+                    contents.push(entity);
+                }
+            }
+        }
+
+        contents
     }
 }
 
@@ -255,14 +280,22 @@ impl Client {
 
                 let chunk_coords = get_chunk_coords_visible_from(position);
 
-                let chunks: Vec<_> = chunk_coords
+                let chunk_data: Vec<_> = chunk_coords
                     .into_iter()
-                    .map(|(x, y)| game_guard.get_chunk(x, y))
+                    .map(|(x, y)| (
+                        game_guard.get_chunk(x, y),
+                        game_guard.get_world_entities(x, y)
+                    ))
                     .collect();
 
-                for chunk in chunks {
+                for (chunk, entities) in chunk_data {
                     let packet = Packet::TerrainChunk { chunk };
                     self.send(packet).await;
+
+                    for entity in entities {
+                        let packet = Packet::EntityLoad { entity };
+                        self.send(packet).await;
+                    }
                 }
 
                 #[allow(unreachable_patterns)] // TODO: remove when adding more entities
@@ -327,17 +360,25 @@ impl Client {
 
                 chunk_coords.retain(|x| !prev_chunk_coords.contains(x));
 
-                let chunks: Vec<_> = {
+                let chunk_data: Vec<_> = {
                     let game_guard = game.lock().unwrap();
                     chunk_coords
                         .into_iter()
-                        .map(|(x, y)| game_guard.get_chunk(x, y))
+                        .map(|(x, y)| (
+                            game_guard.get_chunk(x, y),
+                            game_guard.get_world_entities(x, y)
+                        ))
                         .collect()
                 };
 
-                for chunk in chunks {
+                for (chunk, entities) in chunk_data {
                     let packet = Packet::TerrainChunk { chunk };
                     self.send(packet).await;
+
+                    for entity in entities {
+                        let packet = Packet::EntityLoad { entity };
+                        self.send(packet).await;
+                    }
                 }
 
                 // update position

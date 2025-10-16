@@ -1,14 +1,19 @@
 import type { Vec2 } from "./Vec2";
 
-export class EntityTypePlayer {
-    username: string;
-};
-
-export type EntityType =
-    { player: EntityTypePlayer };
-
 export class Entity {
     id: string;
     position: Vec2;
-    value: EntityType;
 }
+
+export class EntityPlayer extends Entity {
+    entity_type: 'player';
+    username: string;
+}
+
+export class EntityForestTree extends Entity {
+    entity_type: 'forest_tree';
+}
+
+export type EntityType =
+    EntityPlayer |
+    EntityForestTree;

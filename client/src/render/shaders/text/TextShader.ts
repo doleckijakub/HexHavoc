@@ -1,5 +1,4 @@
 import { Shader, type Renderer } from '@render';
-import { Color } from '@core';
 
 import vert from './main.vert?raw';
 import frag from './main.frag?raw';

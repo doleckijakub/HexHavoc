@@ -1,8 +1,9 @@
 use noise::{NoiseFn, OpenSimplex};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::config::*;
-use crate::model::Vec2;
+use crate::model::{Vec2, EntityType, Entity};
 
 pub struct OctavedNoise {
     base: OpenSimplex,
@@ -57,25 +58,28 @@ pub enum TileType {
     Ice,
 }
 
-const ELEV_NOISE_SCALE: f64   = 0.04;
-const OTHER_NOISES_SCALE: f64 = 0.01;
+const ELEV_NOISE_SCALE: f64 = 0.04;
+const ENV_NOISE_SCALE: f64 = 0.01;
+const ENTITY_NOISE_SCALE: f64 = 1.0;
 
 const DEEP_SEA_LEVEL: f64 = 0.40;
 const SEA_LEVEL: f64      = 0.45;
 const BEACH_LEVEL: f64    = 0.48;
 
 pub struct TerrainGenerator {
-    elev_noise: OctavedNoise,  // elevation
-    temp_noise: OctavedNoise,  // temperature
-    humid_noise: OctavedNoise, // humidity
+    elev_noise: OctavedNoise,
+    temp_noise: OctavedNoise,
+    humid_noise: OctavedNoise,
+    entity_noise: OctavedNoise,
 }
 
 impl TerrainGenerator {
     pub fn new(seed: u32) -> Self {
         Self {
             elev_noise: OctavedNoise::new(seed, 5, 0.5, 2.0, ELEV_NOISE_SCALE),
-            temp_noise: OctavedNoise::new(seed.wrapping_add(420), 3, 0.5, 4.0, OTHER_NOISES_SCALE),
-            humid_noise: OctavedNoise::new(seed.wrapping_add(1337), 3, 0.5, 4.0, OTHER_NOISES_SCALE),
+            temp_noise: OctavedNoise::new(seed.wrapping_add(420), 3, 0.5, 4.0, ENV_NOISE_SCALE),
+            humid_noise: OctavedNoise::new(seed.wrapping_add(1337), 3, 0.5, 4.0, ENV_NOISE_SCALE),
+            entity_noise: OctavedNoise::new(seed.wrapping_add(6969), 4, 0.5, 2.0, ENTITY_NOISE_SCALE),
         }
     }
 
@@ -122,6 +126,29 @@ impl TerrainGenerator {
         h = (h * 0.6) + (humidity_from_water * 0.4);
 
         self.get_tile_from_environment(e, t, h)
+    }
+
+    fn should_spawn_entity(&self, x: f64, y: f64) -> bool {
+        self.entity_noise.get(x, y) < WORLD_ENTITY_SPAWN_RATE
+    }
+
+    pub fn get_entity(&self, x: f64, y: f64) -> Option<Entity> {
+        if !self.should_spawn_entity(x, y) { return None; }
+
+        let entity_type = match self.get_tile(x, y) {
+            TileType::Forest => Some(EntityType::ForestTree),
+            _ => None
+        };
+
+        if let Some(ty) = entity_type {
+            return Some(Entity::new(
+                Uuid::new_v4(),
+                Vec2::new(x as f32, y as f32),
+                ty
+            ));
+        }
+
+        None
     }
 }
 

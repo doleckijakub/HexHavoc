@@ -1,5 +1,5 @@
 import type { Vec2 } from '@core/Vec2';
-import type { Entity } from '@core/Entity';
+import type { Entity, EntityType } from '@core/Entity';
 import type { TerrainChunk } from '@type/game';
 
 export interface EntityMovePacket {
@@ -15,7 +15,7 @@ export interface TerrainChunkPacket { // sent whenever the player "loads it"
 
 export interface EntityLoadPacket {
     packet_type: 'entity_load',
-    entity: Entity,
+    entity: EntityType,
 }
 
 export interface PlayerRegisterPacket {
