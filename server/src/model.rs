@@ -122,13 +122,14 @@ impl Game {
     }
 
     pub fn get_new_spawn_location(&self) -> Vec2 {
-        return Vec2::new(1.0, 1.0);
+        return Vec2::new(256.0, 256.0);
 
+        const NO_SPAWN_BORDER: i32 = WATER_EDGE_SIZE * 2;
         let mut rng = rand::rng();
 
         loop {
-            let x = rng.random_range(0..WORLD_SIZE);
-            let y = rng.random_range(0..WORLD_SIZE);
+            let x = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE-NO_SPAWN_BORDER);
+            let y = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE-NO_SPAWN_BORDER);
 
             match self.get_tile(x, y) {
                 TileType::Water | TileType::DeepWater => continue,

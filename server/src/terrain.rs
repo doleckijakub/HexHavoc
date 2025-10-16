@@ -104,16 +104,15 @@ impl TerrainGenerator {
 
     pub fn get_tile(&self, x: f64, y: f64) -> TileType {
         const HWF: f64 = WORLD_SIZE as f64 / 2.0;
-        const WATER_EDGE_SIZE: f64 = 128.0;
+        const WATER_EDGE_SIZE_F: f64 = WATER_EDGE_SIZE as f64;
 
         let mut e = self.elev_noise.get(x, y);
-        let s = (x - HWF).abs().max((y - HWF).abs()) - HWF + WATER_EDGE_SIZE;
-        if s > 0.0 { e -= s / WATER_EDGE_SIZE; }
+        let s = (x - HWF).abs().max((y - HWF).abs()) - HWF + WATER_EDGE_SIZE_F;
+        if s > 0.0 { e -= s / WATER_EDGE_SIZE_F; }
 
         let mut t = self.temp_noise.get(x, y);
         t = (t - (e - BEACH_LEVEL) * 0.6).clamp(0.0, 1.0);
 
-        // TEMPORARY
         if e < DEEP_SEA_LEVEL { return TileType::DeepWater };
         if e < SEA_LEVEL { return TileType::Water };
         if e < BEACH_LEVEL { return TileType::Beach };

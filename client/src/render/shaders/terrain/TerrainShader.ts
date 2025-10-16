@@ -195,7 +195,7 @@ export class TerrainShader extends Shader {
                     ];
 
                     const j = rx + ry * CHUNK_SIZE;
-                    const terrainTileType = c?.contents[j] ?? 'Ice';
+                    const terrainTileType = c?.contents[j] ?? 'DeepWater';
 
                     buffer[i] = terrainTileTypeToNumber(terrainTileType);
                 }
