@@ -8,6 +8,7 @@ export class Entity {
 export class EntityPlayer extends Entity {
     entity_type: 'player';
     username: string;
+    direction: number;
 }
 
 export class EntityForestTree extends Entity {

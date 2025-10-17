@@ -8,35 +8,49 @@ import type {
 } from '@type';
 
 import { Renderer } from '@render';
-import { Color, Vec2, type EntityType } from '@core';
+import { Color, EntityPlayer, Vec2, type EntityType } from '@core';
 
-import { PlayerShader } from '@render/shaders/player/PlayerShader';
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 import { HitboxShader } from '@render/shaders/hitbox/HitboxShader';
 import { TextShader } from '@render/shaders/text/TextShader';
-import { SpriteShader } from '@render/shaders/sprite/SpriteShader';
+import { EntityShader } from '@render/shaders/entity/EntityShader';
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.src = src;
-        img.onload = () => resolve(img);
-        img.onerror = (err) => reject(err);
-    });
+let iota = 0;
+const DIRECTION_N = iota++;
+const DIRECTION_NE = iota++;
+const DIRECTION_E = iota++;
+const DIRECTION_SE = iota++;
+const DIRECTION_S = iota++;
+const DIRECTION_SW = iota++;
+const DIRECTION_W = iota++;
+const DIRECTION_NW = iota++;
+
+function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|number {
+    const { x, y } = newPosition.sub(position);
+
+    const sx = Math.sign(x);
+    const sy = Math.sign(y);
+
+    switch (`${sx},${sy}`) {
+        case '0,1':   return DIRECTION_N;
+        case '1,1':   return DIRECTION_NE;
+        case '1,0':   return DIRECTION_E;
+        case '1,-1':  return DIRECTION_SE;
+        case '0,-1':  return DIRECTION_S;
+        case '-1,-1': return DIRECTION_SW;
+        case '-1,0':  return DIRECTION_W;
+        case '-1,1':  return DIRECTION_NW;
+        default:      return null;
+    }
 }
-
-import tilemapSrc from './textures/tilemap.png';
-import { stringify } from 'querystring';
-const tilemap = await loadImage(tilemapSrc);
 
 const canvas = document.getElementById("gl") as HTMLCanvasElement;
 const renderer = new Renderer(canvas);
 
-const playerShader = new PlayerShader(renderer);
 const terrainShader = new TerrainShader(renderer);
 const hitboxShader = new HitboxShader(renderer);
 const textShader = new TextShader(renderer);
-const spriteShader = new SpriteShader(renderer, tilemap);
+const entityShader = new EntityShader(renderer);
 
 class Game {
     private ws: WebSocket;
@@ -115,12 +129,19 @@ class Game {
                     };
                 } else {
                     const entity_type = Object.keys(value)[0];
-                    entity = <EntityType> {
+                    
+                    let e = {
                         id,
                         position,
                         entity_type,
                         ...value[entity_type]
                     };
+
+                    if (entity_type === 'player') {
+                        e.direction = DIRECTION_S;
+                    }
+
+                    entity = <EntityType> e;
                 }
 
                 return {
@@ -150,6 +171,11 @@ class Game {
             return;
         }
 
+        if (entity.entity_type === 'player') {
+            const direction = positionDifferenceToDirection(entity.position, packet.new_position);
+            if (direction !== null) entity.direction = direction;
+        }
+
         entity.position = packet.new_position;
     }
 
@@ -175,6 +201,17 @@ class Game {
         this.ws.send(JSON.stringify(packet));
     }
 
+    private getPlayer(): EntityPlayer|null {
+        if (!this.playerId) return null;
+
+        const player = this.entities.get(this.playerId);
+        if (!player) return null;
+
+        if (player.entity_type !== 'player') throw new Error("Player is not a player");
+
+        return player;
+    }
+
     private loop(now: number) {
         this.render(now);
         this.update(now);
@@ -187,7 +224,7 @@ class Game {
 
         if (!this.playerId) return;
 
-        const player = this.entities.get(this.playerId);
+        const player = this.getPlayer();
         if (!player) return;
 
         renderer.setCameraPosition(player.position);
@@ -197,15 +234,8 @@ class Game {
 
         terrainShader.renderTerrain(this.terrain);
 
-        for (let entity of Array.from(this.entities.values()).sort((e1, e2) => e2.position.y - e1.position.y)) {
-            const { entity_type, position: { x, y } } = entity;
-
-            switch (entity_type) {
-                case 'player': playerShader.renderPlayer(entity); break;
-                case 'forest_tree': spriteShader.renderSprite(x, y, 0, 2, 16); break;
-                default: throw new Error(`Do not know how to render entity of type "${entity_type}"`);
-            }
-        }
+        for (let entity of this.entities.values()) entityShader.dispatchEntityRender(entity);
+        entityShader.renderDispatchedEntities();
 
         for (let entity of this.entities.values()) {
             if (entity.entity_type != 'player') continue;
@@ -242,7 +272,7 @@ class Game {
     private update(now: number) {
         if (!this.playerId) return;
 
-        const player = this.entities.get(this.playerId);
+        const player = this.getPlayer();
         if (!player) return;
 
         const dt = (now - this.lastLoopTimestamp) / 1000;
@@ -291,10 +321,15 @@ class Game {
                 }
             }
 
-            player.position = new Vec2(
+            const newPosition = new Vec2(
                 player.position.x + dx * dt * speed,
                 player.position.y + dy * dt * speed
             );
+
+            const direction = positionDifferenceToDirection(player.position, newPosition);
+            if (direction !== null) player.direction = direction;
+
+            player.position = newPosition;
 
             this.send({
                 packet_type: 'entity_move',
