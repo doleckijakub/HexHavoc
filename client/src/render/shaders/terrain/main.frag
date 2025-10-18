@@ -201,7 +201,7 @@ void main() {
 
     vec2 f = fract(v_localPosTiles);
 
-    float border = 0.1;
+    float border = 1.0 / 16.0;
 
     bool nearLeft   = f.x < border;
     bool nearRight  = f.x > 1.0 - border;
