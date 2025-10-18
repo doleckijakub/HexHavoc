@@ -24,7 +24,7 @@ void main() {
     v_worldPos = worldPos;
 
     vec3 clip = u_vp * vec3(worldPos, 1.0);
-    gl_Position = vec4(clip.xy, 0.0, 1.0);
+    gl_Position = vec4(clip.xy, 1.0 - 1.0 / 2048.0, 1.0);
 
     v_chunkIndex = a_chunkIndex;
 }

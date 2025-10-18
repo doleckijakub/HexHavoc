@@ -17,7 +17,7 @@ void main() {
     vec2 worldPos = a_instancePos + vec2(a_pos.x * a_instanceFrame.z, a_pos.y * a_instanceFrame.w);
     vec3 clipPos = u_vp * vec3(worldPos, 1.0);
 
-    gl_Position = vec4(clipPos.xy, a_instancePos.y * 0.001, 1.0);
+    gl_Position = vec4(clipPos.xy, a_instancePos.y / 2048.0, 1.0);
 
     v_uv = vec2(a_uv.x, 1.0 - a_uv.y);
     v_frame = a_instanceFrame;

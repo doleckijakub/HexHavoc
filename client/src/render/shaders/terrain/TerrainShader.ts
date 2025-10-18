@@ -59,6 +59,8 @@ export class TerrainShader extends Shader {
         this.offsets = new Float32Array(MAX_INSTANCES * 2);
         this.chunkIndices = new Uint32Array(MAX_INSTANCES);
 
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LESS);
         this.vao = gl.createVertexArray()!;
         gl.bindVertexArray(this.vao);
 

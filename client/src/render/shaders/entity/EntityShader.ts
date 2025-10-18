@@ -155,6 +155,8 @@ export class EntityShader extends Shader {
         gl.uniformMatrix3fv(u_vp, false, vp.arr());
 
         gl.enable(gl.BLEND);
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthFunc(gl.LESS);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.bindVertexArray(this.vao);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.instanceBuffer);
@@ -162,8 +164,6 @@ export class EntityShader extends Shader {
         for (let i = 0; i < this.textures.length; i++) {
             const instances = this.instanceBatches[i];
             if (instances.length === 0) continue;
-
-            instances.sort((a, b) => b.y - a.y);
 
             const grid = this.grids[i];
             gl.uniform2f(u_spriteGrid, grid.w, grid.h);
