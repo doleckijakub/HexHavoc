@@ -11,6 +11,10 @@ export class Vec2 {
         return new Vec2(s.x, s.y);
     }
 
+    equals(o: Vec2): boolean {
+        return this.x == o.x && this.y == o.y;
+    }
+
     add(other: Vec2): Vec2 {
         return new Vec2(this.x + other.x, this.y + other.y);
     }

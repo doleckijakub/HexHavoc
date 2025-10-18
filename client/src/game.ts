@@ -138,6 +138,9 @@ class Game {
                     };
 
                     if (entity_type === 'player') {
+                        e.skin = 1;
+
+                        e.previous_position = position;
                         e.direction = DIRECTION_S;
                     }
 
@@ -169,11 +172,6 @@ class Game {
         if (!entity) {
             console.warn(`Entity ${packet.id} does not exist`);
             return;
-        }
-
-        if (entity.entity_type === 'player') {
-            const direction = positionDifferenceToDirection(entity.position, packet.new_position);
-            if (direction !== null) entity.direction = direction;
         }
 
         entity.position = packet.new_position;
@@ -326,9 +324,6 @@ class Game {
                 player.position.y + dy * dt * speed
             );
 
-            const direction = positionDifferenceToDirection(player.position, newPosition);
-            if (direction !== null) player.direction = direction;
-
             player.position = newPosition;
 
             this.send({
@@ -336,6 +331,28 @@ class Game {
                 id: this.playerId,
                 new_position: player.position,
             });
+        }
+    }
+
+    animate() {
+        for (let entity of this.entities.values()) {
+            if (entity.entity_type === 'player') {
+                const direction = positionDifferenceToDirection(entity.previous_position, entity.position);
+                if (direction !== null) entity.direction = direction;
+
+                const animationFrame = direction === null
+                    ? 1
+                    : ((): number => {
+                        const time = performance.now() / 1000;
+                        const stepDuration = 0.1;
+                        const phase = (time / stepDuration) % 4;
+
+                        return [0, 1, 2, 1][Math.floor(phase)];
+                    })();
+
+                entity.animation_frame = animationFrame;
+                entity.previous_position = entity.position;
+            }
         }
     }
 
@@ -348,6 +365,7 @@ class Game {
         window.addEventListener("keyup", e => this.keyboardState[e.code] = false);
 
         setInterval(() => this.ws.send(''), 20 * 1000);
+        setInterval(this.animate.bind(this), 100);
     }
 }
 

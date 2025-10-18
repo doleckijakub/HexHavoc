@@ -8,7 +8,11 @@ export class Entity {
 export class EntityPlayer extends Entity {
     entity_type: 'player';
     username: string;
+    skin: number;
+
+    previous_position: Vec2;
     direction: number;
+    animation_frame: number;
 }
 
 export class EntityForestTree extends Entity {

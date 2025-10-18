@@ -1,5 +1,5 @@
 import { Shader, type Renderer } from '@render';
-import type { EntityType } from '@core';
+import type { EntityType, Vec2 } from '@core';
 
 import vert from './main.vert?raw';
 import frag from './main.frag?raw';
@@ -137,7 +137,14 @@ export class EntityShader extends Shader {
         }
 
         switch (entity_type) {
-            case 'player': return this.dispatchSpriteRender(x, y, 1, entity.direction, 6 /* TODO: animations */);
+            case 'player': {
+                return this.dispatchSpriteRender(
+                    x, y,
+                    1,
+                    entity.direction,
+                    4 * entity.skin + 1 + entity.animation_frame
+                );
+            }
             default: throw new Error(`Do not know how to render entity of type "${entity_type}"`);
         }
     }
