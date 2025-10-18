@@ -14,7 +14,7 @@ uniform vec4 u_tileColors[13];
 
 out vec4 outColor;
 
-const int PIXELS_PER_TILE = 8;
+const int PIXELS_PER_TILE = 16;
 
 uint getTile(int dx, int dy) {
     ivec2 tileCoord = ivec2(floor(v_localPosTiles));
@@ -201,7 +201,7 @@ void main() {
 
     vec2 f = fract(v_localPosTiles);
 
-    float border = 1.0 / 16.0;
+    float border = 1.0 / float(PIXELS_PER_TILE);
 
     bool nearLeft   = f.x < border;
     bool nearRight  = f.x > 1.0 - border;

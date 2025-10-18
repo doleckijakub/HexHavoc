@@ -22,6 +22,7 @@ export interface PlayerRegisterPacket {
     packet_type: 'player_register';
     game_name: string;
     username: string;
+    skin: number;
 }
 
 export interface PlayerRegisteredPacket {

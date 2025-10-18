@@ -21,7 +21,11 @@ impl ErrorPacket {
 #[serde(tag = "packet_type")]
 pub enum Packet {
     #[serde(rename = "player_register")]
-    PlayerRegister { game_name: String, username: String },
+    PlayerRegister {
+        game_name: String,
+        username: String,
+        skin: i32,
+    },
 
     #[serde(rename = "player_registered")]
     PlayerRegistered { id: Uuid },

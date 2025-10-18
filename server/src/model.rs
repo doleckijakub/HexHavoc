@@ -28,8 +28,7 @@ impl Vec2 {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EntityPlayer {
     pub username: String,
-    // TODO: sprite
-    // TODO: tint color
+    pub skin: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -107,8 +106,12 @@ impl Entity {
         }
     }
 
-    pub fn player(id: Uuid, position: Vec2, username: String) -> Self {
-        Self::new(id, position, EntityType::Player(EntityPlayer { username }))
+    pub fn player(id: Uuid, position: Vec2, username: String, skin: i32) -> Self {
+        Self::new(
+            id,
+            position,
+            EntityType::Player(EntityPlayer { username, skin }),
+        )
     }
 }
 
@@ -230,6 +233,7 @@ impl Client {
             Packet::PlayerRegister {
                 game_name,
                 username,
+                skin,
             } => {
                 if self.get_player().await.is_some() {
                     self.elog("Tried to reregister").await;
@@ -276,7 +280,7 @@ impl Client {
 
                 let position = game_guard.get_new_spawn_location();
 
-                let entity = Entity::player(self.id, position, username);
+                let entity = Entity::player(self.id, position, username, skin);
 
                 game_guard.entity_map.insert(self.id, entity.clone());
 

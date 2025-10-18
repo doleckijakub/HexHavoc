@@ -44,17 +44,17 @@ function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|
     }
 }
 
-const canvas = document.getElementById("gl") as HTMLCanvasElement;
-const renderer = new Renderer(canvas);
-
-const terrainShader = new TerrainShader(renderer);
-const hitboxShader = new HitboxShader(renderer);
-const textShader = new TextShader(renderer);
-const entityShader = new EntityShader(renderer);
-
 class Game {
     private ws: WebSocket;
     private keyboardState: Record<string, boolean> = {};
+
+    private canvas: HTMLCanvasElement;
+    private renderer: Renderer;
+
+    private terrainShader: TerrainShader;
+    private hitboxShader: HitboxShader;
+    private textShader: TextShader;
+    private entityShader: EntityShader;
 
     private playerId?: string;
     private entities: Map<string, EntityType> = new Map();
@@ -67,12 +67,23 @@ class Game {
     private positionSpan = document.getElementById('position') as HTMLSpanElement;
     private scaleSlider = document.getElementById("scale-slider") as HTMLInputElement;
 
-    constructor() {
+    constructor(
+        username: string,
+        skin: number,
+    ) {
+        this.canvas = document.getElementById("gl") as HTMLCanvasElement;
+        this.renderer = new Renderer(this.canvas);
+
+        this.terrainShader = new TerrainShader(this.renderer);
+        this.hitboxShader = new HitboxShader(this.renderer);
+        this.textShader = new TextShader(this.renderer);
+        this.entityShader = new EntityShader(this.renderer);
+
         const ws = new WebSocket(`ws://${document.location.host}/ws`);
         const pathElements = document.location.pathname.split('/');
         const gameName = pathElements[pathElements.length - 1];
 
-        renderer.setClearColor(Color.hex('7F007F'));
+        this.renderer.setClearColor(Color.hex('7F007F'));
         // TODO
         // renderer.setClearColor(Color.rgb(0, 0, 70));
 
@@ -80,7 +91,9 @@ class Game {
             this.send({
                 packet_type: 'player_register',
                 game_name: gameName,
-                username: 'player_' + Date.now(),
+
+                username,
+                skin,
             });
         };
 
@@ -138,8 +151,6 @@ class Game {
                     };
 
                     if (entity_type === 'player') {
-                        e.skin = 1;
-
                         e.previous_position = position;
                         e.direction = DIRECTION_S;
                     }
@@ -218,27 +229,27 @@ class Game {
     }
 
     private render(now: number) {
-        renderer.clear();
+        this.renderer.clear();
 
         if (!this.playerId) return;
 
         const player = this.getPlayer();
         if (!player) return;
 
-        renderer.setCameraPosition(player.position);
-        renderer.setCameraScale(Number.parseFloat(this.scaleSlider.value!));
+        this.renderer.setCameraPosition(player.position);
+        this.renderer.setCameraScale(Number.parseFloat(this.scaleSlider.value!));
 
         // render
 
-        terrainShader.renderTerrain(this.terrain);
+        this.terrainShader.renderTerrain(this.terrain);
 
-        for (let entity of this.entities.values()) entityShader.dispatchEntityRender(entity);
-        entityShader.renderDispatchedEntities();
+        for (let entity of this.entities.values()) this.entityShader.dispatchEntityRender(entity);
+        this.entityShader.renderDispatchedEntities();
 
         for (let entity of this.entities.values()) {
             if (entity.entity_type != 'player') continue;
 
-            if (entity.id != this.playerId) textShader.renderText(
+            if (entity.id != this.playerId) this.textShader.renderText(
                 entity.username,
                 entity.position.x,
                 entity.position.y + 1
@@ -369,5 +380,59 @@ class Game {
     }
 }
 
-const game = new Game();
-game.run();
+// window.onload = () => {
+//   const form = document.querySelector('#form form')! as HTMLFormElement;
+//   const usernameInput = form.querySelector('input[name=username]')! as HTMLInputElement;
+//   const gameDiv = document.getElementById('game')!;
+
+//   console.log({ form, usernameInput, gameDiv });
+
+//   form.onsubmit = ev => {
+//     ev.preventDefault();
+//     const username = usernameInput.value.trim();
+//     if (!username) return alert('Enter a username');
+
+//     form.parentElement!.style.display = 'none';
+//     gameDiv.removeAttribute('style');
+
+//     const game = new Game(username);
+//     game.run();
+//   };
+// };
+
+// const game = new Game("player");
+// game.run();
+
+function startGame() {
+    const formDiv = document.getElementById('form')! as HTMLDivElement;
+    const gameDiv = document.getElementById('game')! as HTMLDivElement;
+    
+    const usernameInput = formDiv.querySelector('input[name=username]') as HTMLInputElement;
+    const skinInput = formDiv.querySelector('input[name=skin]') as HTMLInputElement;
+
+    const form = formDiv.querySelector('form')!;
+    form.addEventListener('submit', ev => {
+        ev.preventDefault();
+        console.log('form submitted');
+        
+        const username = usernameInput.value.trim();
+        if (!username) {
+            alert('Please enter a username');
+            return;
+        }
+
+        const skin: number = parseInt(skinInput.value);
+
+        formDiv.style.display = 'none';
+        gameDiv.style.display = '';
+
+        const game = new Game(username, skin);
+        game.run();
+    });
+}
+
+if (document.readyState !== 'loading') {
+    startGame();
+} else {
+    window.addEventListener('DOMContentLoaded', startGame);
+}

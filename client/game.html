@@ -14,10 +14,21 @@
   </style>
 </head>
 <body>
-  <canvas id="gl"></canvas>
+  <div id="form">
+    <form>
+      <input type="text" name="username">
+      <input type="number" name="skin"> <!-- TODO: display the skin properly -->
+      <input type="submit">
+    </form>
+  </div>
+
+  <div id="game" style="display: none;">
+    <canvas id="gl"></canvas>
+    <span id="fps"></span>
+    <span id="position"></span>
+    <input id="scale-slider" type="range" min="1" max="128" value="32">
+  </div>
+  
   <script type="module" src="src/game.ts"></script>
-  <span id="fps"></span>
-  <span id="position"></span>
-  <input id="scale-slider" type="range" min="1" max="128" value="32">
 </body>
 </html>
