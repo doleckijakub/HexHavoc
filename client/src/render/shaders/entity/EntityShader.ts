@@ -45,6 +45,7 @@ export class EntityShader extends Shader {
     private instanceBuffer: WebGLBuffer;
 
     private textures: WebGLTexture[] = [];
+    private textureSizes: [number, number][] = [];
     private grids: { w: number; h: number }[] = [];
 
     private instanceBatches: SpriteInstance[][] = [];
@@ -63,7 +64,9 @@ export class EntityShader extends Shader {
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, t.image);
 
             this.textures.push(tex);
+            this.textureSizes.push([ t.image.width, t.image.height ]);
             this.grids.push({ w: t.spritesPerWidth, h: t.spritesPerHeight });
+
             this.instanceBatches.push([]);
         }
 
@@ -158,6 +161,7 @@ export class EntityShader extends Shader {
         const u_vp = this.getUniformLocation('u_vp');
         const u_spriteGrid = this.getUniformLocation('u_spriteGrid');
         const u_spriteSheet = this.getUniformLocation('u_spriteSheet');
+        const u_textureSize = this.getUniformLocation('u_textureSize');
 
         gl.uniformMatrix3fv(u_vp, false, vp.arr());
 
@@ -178,6 +182,7 @@ export class EntityShader extends Shader {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, this.textures[i]);
             gl.uniform1i(u_spriteSheet, 0);
+            gl.uniform2fv(u_textureSize, this.textureSizes[i]);
 
             const data = new Float32Array(instances.length * 6);
             for (let j = 0; j < instances.length; j++) {
