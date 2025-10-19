@@ -52,6 +52,7 @@ pub struct Game {
     pub name: String,
 
     pub entity_map: HashMap<Uuid, Entity>,
+    usernames: HashSet<String>,
 
     terrain_generator: TerrainGenerator,
 }
@@ -128,7 +129,10 @@ impl Game {
         Self {
             id,
             name,
+
             entity_map: HashMap::new(),
+            usernames: HashSet::new(),
+
             terrain_generator: TerrainGenerator::new(seed),
         }
     }
@@ -248,33 +252,16 @@ impl Client {
                     }
                 };
 
-                for (_, client) in state.clients.iter() {
-                    let client = client.clone();
-
-                    if client.game.is_none() {
-                        continue;
-                    }
-
-                    if let Some(client_game) = client.game {
-                        let client_game = client_game.lock().await;
-
-                        if client_game.id != game_id {
-                            continue;
-                        }
-
-                        if let Some(player_entity) = client_game.entity_map.get(&client.id)
-                            && let EntityType::Player(player) = &player_entity.value
-                            && player.username == username
-                        {
-                            self.send_error("username-taken").await;
-                            return;
-                        }
-                    }
-                }
-
                 let game = state.games.get(&game_id).unwrap().clone();
                 self.game = Some(game.clone());
                 let mut game_guard = game.lock().await;
+
+                if game_guard.usernames.contains(&username) {
+                    self.send_error("username-taken").await;
+                    return;
+                }
+
+                game_guard.usernames.insert(username.clone());
 
                 state.clients.insert(self.id, self.clone());
 

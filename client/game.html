@@ -16,10 +16,11 @@
 <body>
   <div id="form">
     <form>
-      <input type="text" name="username">
-      <input type="number" name="skin"> <!-- TODO: display the skin properly -->
+      <label>Username: <input type="text" name="username" required /></label><br />
+      <div id="skin-selector"></div>
       <input type="submit">
     </form>
+    <script type="module" src="src/SkinSelector.ts"></script>
   </div>
 
   <div id="game" style="display: none;">

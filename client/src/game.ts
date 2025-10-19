@@ -67,10 +67,7 @@ class Game {
     private positionSpan = document.getElementById('position') as HTMLSpanElement;
     private scaleSlider = document.getElementById("scale-slider") as HTMLInputElement;
 
-    constructor(
-        username: string,
-        skin: number,
-    ) {
+    private constructor(ws: WebSocket) {
         this.canvas = document.getElementById("gl") as HTMLCanvasElement;
         this.renderer = new Renderer(this.canvas);
 
@@ -79,34 +76,52 @@ class Game {
         this.textShader = new TextShader(this.renderer);
         this.entityShader = new EntityShader(this.renderer);
 
-        const ws = new WebSocket(`ws://${document.location.host}/ws`);
-        const pathElements = document.location.pathname.split('/');
-        const gameName = pathElements[pathElements.length - 1];
-
-        this.renderer.setClearColor(Color.hex('7F007F'));
-        // TODO
-        // renderer.setClearColor(Color.rgb(0, 0, 70));
-
-        ws.onopen = () => {
-            this.send({
-                packet_type: 'player_register',
-                game_name: gameName,
-
-                username,
-                skin,
-            });
-        };
-
-        ws.onmessage = ev => this.recv(this.parsePacket(ev));
-
-        ws.onclose = console.warn;
-        ws.onerror = console.error;
-
         this.ws = ws;
     }
 
-    private parsePacket(ev: MessageEvent<any>): Packet {
-        const data = JSON.parse(ev.data);
+    static async create(username: string, skin: number): Promise<Game> {
+        return new Promise((resolve, reject) => {
+            const ws = new WebSocket(`ws://${document.location.host}/ws`);
+            const pathElements = document.location.pathname.split('/');
+            const gameName = pathElements[pathElements.length - 1];
+
+            const game = new Game(ws);
+
+            game.renderer.setClearColor(Color.hex('7F007F'));
+            // TODO
+            // renderer.setClearColor(Color.rgb(0, 0, 70));
+
+            ws.onopen = () => {
+                game.send({
+                    packet_type: 'player_register',
+                    game_name: gameName,
+
+                    username,
+                    skin,
+                });
+            };
+
+            ws.onmessage = ev => {
+                const data = JSON.parse(ev.data);
+                if (data.error) {
+                    ws.close();
+                    reject(new Error(data.error));
+                }
+
+                const packet = game.parsePacket(data);
+                game.recv(packet);
+
+                if (packet.packet_type === 'player_registered') {
+                    resolve(game);
+                }
+            };
+
+            ws.onclose = console.warn;
+            ws.onerror = console.error;
+        })
+    }
+
+    private parsePacket(data: any): Packet {
         const packet_type = data['packet_type']; 
 
         switch (packet_type) {
@@ -380,54 +395,35 @@ class Game {
     }
 }
 
-// window.onload = () => {
-//   const form = document.querySelector('#form form')! as HTMLFormElement;
-//   const usernameInput = form.querySelector('input[name=username]')! as HTMLInputElement;
-//   const gameDiv = document.getElementById('game')!;
-
-//   console.log({ form, usernameInput, gameDiv });
-
-//   form.onsubmit = ev => {
-//     ev.preventDefault();
-//     const username = usernameInput.value.trim();
-//     if (!username) return alert('Enter a username');
-
-//     form.parentElement!.style.display = 'none';
-//     gameDiv.removeAttribute('style');
-
-//     const game = new Game(username);
-//     game.run();
-//   };
-// };
-
-// const game = new Game("player");
-// game.run();
-
 function startGame() {
     const formDiv = document.getElementById('form')! as HTMLDivElement;
     const gameDiv = document.getElementById('game')! as HTMLDivElement;
-    
+
     const usernameInput = formDiv.querySelector('input[name=username]') as HTMLInputElement;
     const skinInput = formDiv.querySelector('input[name=skin]') as HTMLInputElement;
 
     const form = formDiv.querySelector('form')!;
-    form.addEventListener('submit', ev => {
+    form.addEventListener('submit', async ev => {
         ev.preventDefault();
-        console.log('form submitted');
-        
+
         const username = usernameInput.value.trim();
         if (!username) {
             alert('Please enter a username');
             return;
         }
 
-        const skin: number = parseInt(skinInput.value);
+        const skin = parseInt(skinInput.value);
+            
+        formDiv.remove();
+        gameDiv.removeAttribute('style');
 
-        formDiv.style.display = 'none';
-        gameDiv.style.display = '';
-
-        const game = new Game(username, skin);
-        game.run();
+        try {
+            const game = await Game.create(username, skin);
+            game.run();
+        } catch (err: any) {
+            alert(`Registration failed: ${err.message}`);
+            window.location.reload();
+        }
     });
 }
 
