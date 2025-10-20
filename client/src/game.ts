@@ -81,7 +81,7 @@ class Game {
 
     static async create(username: string, skin: number): Promise<Game> {
         return new Promise((resolve, reject) => {
-            const ws = new WebSocket(`ws://${document.location.host}/ws`);
+            const ws = new WebSocket(`${document.location.protocol == 'https:' ? 'wss' : 'ws'}://${document.location.host}/ws`);
             const pathElements = document.location.pathname.split('/');
             const gameName = pathElements[pathElements.length - 1];
 
