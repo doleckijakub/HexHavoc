@@ -146,24 +146,42 @@ void main() {
         baseColor = c / i;
 
         if (!isWater(n)) {
-            vec4 sideColor = vec4(vec3(127.0, 69.0, 18.0) / 255.0, 1.0);
+            vec3 sideColor1 = vec3(87.0, 47.0, 12.0) / 255.0;
+            vec3 sideColor2 = (2.0 * vec3(127.0, 69.0, 18.0)) / 255.0 - sideColor1;
+
+            float sideColorDarkness = 1.0;
+
             if (
                 (x < 1.0 / float(PIXELS_PER_TILE) && (isWater(nw) || !isWater(w) || n != nw))
                 ||
                 (x >= 1.0 - 1.0 / float(PIXELS_PER_TILE) && (isWater(ne) || !isWater(e) || n != ne))
-            ) sideColor = vec4(vec3(87.0, 47.0, 12.0) / 255.0, 1.0);
+            ) sideColorDarkness = 0.5;
 
-            float s = snoise(vec3(
-                floor(v_worldPos.x * float(PIXELS_PER_TILE)) / float(PIXELS_PER_TILE),
-                floor(v_worldPos.y * float(PIXELS_PER_TILE)) / float(PIXELS_PER_TILE),
+            for (float dt = 3.0; dt >= 0.0; dt -= 1.0 / 4.0) {
+                if (
+                y > snoise(vec3(
+                    floor(v_worldPos * float(PIXELS_PER_TILE)) / float(PIXELS_PER_TILE),
+                    u_time - dt
+                )) / 4.0 + 0.25 + (4.0 / float(PIXELS_PER_TILE))
+                ) sideColorDarkness = 0.0; // (1.0 / 256.0); //  * (1.0 - dt);
+            }
+
+            sideColorDarkness = clamp(sideColorDarkness, 0.0, 1.0);
+
+            vec3 sideColor = mix(mix(sideColor2, sideColor1, sideColorDarkness), u_tileColors[n].xyz, 0.2);
+
+            float noiseRaw = snoise(vec3(
+                floor(v_worldPos * float(PIXELS_PER_TILE)) / float(PIXELS_PER_TILE),
                 u_time
-            )) / 4.0 + 0.25;
+            ));
+
+            float noise = noiseRaw / 4.0 + 0.25;
 
             outColor =
-                y > s + (2.0 / float(PIXELS_PER_TILE)) ? mix(sideColor, u_tileColors[n], 0.2) :
-                y > s + (1.0 / float(PIXELS_PER_TILE)) ? vec4(1.0) :
-                y > s ? mix(vec4(1.0), baseColor, 0.5)
-                : baseColor;
+                y > noise + (2.0 / float(PIXELS_PER_TILE)) ? vec4(sideColor, 1.0) :
+                y > noise + (1.0 / float(PIXELS_PER_TILE)) ? vec4(1.0) :
+                y > noise ? mix(vec4(1.0), baseColor, 0.5) :
+                baseColor;
             return;
         }
 
