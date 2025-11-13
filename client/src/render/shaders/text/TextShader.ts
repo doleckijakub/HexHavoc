@@ -97,11 +97,14 @@ export class TextShader extends Shader {
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        const wasDepthTestEnabled = gl.isEnabled(gl.DEPTH_TEST);
+        gl.disable(gl.DEPTH_TEST);
 
         gl.bindVertexArray(this.vao);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
 
+        if (wasDepthTestEnabled) gl.enable(gl.DEPTH_TEST);
         gl.disable(gl.BLEND);
 
         this.finish();
