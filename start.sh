@@ -9,7 +9,7 @@ cargo build --release
 cd -
 
 cd client
-vite build
+npm run build
 cd -
 
 exec server/target/release/hexhavoc-server

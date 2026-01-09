@@ -1,28 +1,22 @@
 # HexHavoc client
 
-Node.js 20+ and pnpm is required.
-
-## Install pnpm
-
-```bash
-npm install -g pnpm
-```
+Node.js v20.19.0+ is required.
 
 ## To install dependencies:
 
 ```bash
-pnpm install
+npm install
 ```
 
 ## Running development server:
 
 ```bash
-pnpm dev
+npm run dev
 ```
 
 ## Bundling for production
 ```bash
-pnpm build
+npm run build
 ```
 
 > It will output HTML, JS and bundled assets in `dist/` directory
