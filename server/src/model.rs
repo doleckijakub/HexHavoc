@@ -38,6 +38,39 @@ pub enum EntityType {
 
     #[serde(rename = "forest_tree")]
     ForestTree,
+
+    #[serde(rename = "spruce_tree")]
+    SpruceTree,
+
+    #[serde(rename = "jungle_tree")]
+    JungleTree,
+
+    #[serde(rename = "cactus")]
+    Cactus,
+
+    #[serde(rename = "tree_stump")]
+    TreeStump,
+
+    #[serde(rename = "ice_spike")]
+    IceSpike,
+
+    #[serde(rename = "bush")]
+    Bush,
+
+    #[serde(rename = "stone")]
+    Stone,
+
+    #[serde(rename = "big_stone")]
+    BigStone,
+
+    #[serde(rename = "tree_log")]
+    TreeLog,
+
+    #[serde(rename = "tall_grass")]
+    TallGrass,
+
+    #[serde(rename = "sea_shell")]
+    SeaShell,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

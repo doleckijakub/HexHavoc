@@ -163,7 +163,16 @@ impl TerrainGenerator {
         }
 
         let entity_type = match tile {
+            TileType::Grass => Some(EntityType::TallGrass),
             TileType::Forest => Some(EntityType::ForestTree),
+            TileType::Tundra => Some(EntityType::SpruceTree),
+            TileType::Jungle => Some(EntityType::JungleTree),
+            TileType::Desert => Some(EntityType::Cactus),
+            TileType::Beach => Some(EntityType::SeaShell),
+            TileType::Ice => Some(EntityType::IceSpike),
+            TileType::Savanna => Some(EntityType::TreeStump),
+            TileType::Swamp => Some(EntityType::TreeLog),
+            TileType::Stone => Some(EntityType::BigStone),
             _ => None,
         };
 

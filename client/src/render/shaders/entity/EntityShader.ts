@@ -23,6 +23,17 @@ const TILEMAPS: Tilemap[] = [
 
 const SPRITE_MAP: Map<string, { layer: number, x: number, y: number, w: number, h: number }> = new Map([
     [ 'forest_tree', { layer: 0, x: 0, y: 0, w: 1, h: 2 } ],
+    [ 'spruce_tree', { layer: 0, x: 1, y: 0, w: 1, h: 2 } ],
+    [ 'jungle_tree', { layer: 0, x: 2, y: 0, w: 1, h: 2 } ],
+    [ 'cactus',      { layer: 0, x: 3, y: 0, w: 1, h: 2 } ],
+    [ 'tree_stump',  { layer: 0, x: 4, y: 1, w: 1, h: 1 } ],
+    [ 'ice_spike',   { layer: 0, x: 5, y: 0, w: 1, h: 2 } ],
+    [ 'bush',        { layer: 0, x: 6, y: 1, w: 1, h: 1 } ],
+    [ 'stone',       { layer: 0, x: 7, y: 1, w: 1, h: 1 } ],
+    [ 'big_stone',   { layer: 0, x: 8, y: 1, w: 1, h: 1 } ],
+    [ 'tree_log',    { layer: 0, x: 9, y: 1, w: 1, h: 1 } ],
+    [ 'tall_grass',  { layer: 0, x: 10, y: 1, w: 1, h: 1 } ],
+    [ 'sea_shell',   { layer: 0, x: 11, y: 1, w: 1, h: 1 } ],
 ]);
 
 interface SpriteInstance {
