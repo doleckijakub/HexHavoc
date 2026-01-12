@@ -19,7 +19,7 @@ use model::{ServerState, SharedState};
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let address = "0.0.0.0";
-    let port = 8080;
+    let port = 9872;
 
     println!("Starting HexHavoc on http://{address}:{port}");
 
