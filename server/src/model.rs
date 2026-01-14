@@ -226,6 +226,24 @@ impl Client {
         }
     }
 
+    async fn get_player_entity_by_username(&self, username: &str) -> Option<Entity> {
+        if let Some(game_arc) = &self.game {
+            let game = game_arc.lock().await;
+
+            for ent in game.entity_map.values() {
+                if let EntityType::Player(entity_player) = &ent.value
+                    && entity_player.username == username
+                {
+                    return Some(ent.clone());
+                }
+            }
+
+            None
+        } else {
+            None
+        }
+    }
+
     async fn get_player(&self) -> Option<EntityPlayer> {
         if let EntityType::Player(player) = self
             .get_player_entity()
@@ -264,6 +282,57 @@ impl Client {
         let json = serde_json::to_string(&packet).unwrap();
         let mut session = self.ws_session.lock().await;
         session.text(json).await.ok();
+    }
+
+    pub async fn move_player(&self, new_position: Vec2, state: &mut ServerState, notify: bool) {
+        let game_arc = match &self.game {
+            Some(g) => g.clone(),
+            _ => return,
+        };
+
+        let mut game_guard = game_arc.lock().await;
+
+        let prev_position = match game_guard.entity_map.get(&self.id) {
+            Some(e) => e.position,
+            _ => return,
+        };
+
+        if let Some(entity_mut) = game_guard.entity_map.get_mut(&self.id) {
+            entity_mut.position = new_position;
+        }
+
+        let prev_chunks: HashSet<_> = get_chunk_coords_visible_from(prev_position)
+            .into_iter()
+            .collect();
+        let new_chunks: Vec<_> = get_chunk_coords_visible_from(new_position)
+            .into_iter()
+            .filter(|c| !prev_chunks.contains(c))
+            .collect();
+
+        for (x, y) in new_chunks {
+            let (chunk, entities) = game_guard.get_chunk_data(x, y);
+
+            self.send(Packet::TerrainChunk { chunk }).await;
+
+            for entity in entities {
+                self.send(Packet::EntityLoad { entity }).await;
+            }
+        }
+
+        let all_clients: Vec<Client> = state.clients.values().cloned().collect();
+
+        for client in all_clients {
+            if !notify && client.id == self.id {
+                continue;
+            }
+
+            client
+                .send(Packet::EntityMove {
+                    id: self.id,
+                    new_position,
+                })
+                .await;
+        }
     }
 
     pub async fn recv(&mut self, packet: Packet, state: &mut ServerState) {
@@ -362,9 +431,14 @@ impl Client {
 
                 self.send(Packet::PlayerRegistered { id: self.id }).await;
 
-                let new_player_message = format!("{} joined the game", self.username.clone().unwrap());
+                let new_player_message =
+                    format!("{} joined the game", self.username.clone().unwrap());
                 for client in &game_clients {
-                    client.send(Packet::SystemMessage { message: new_player_message.clone() }).await;
+                    client
+                        .send(Packet::SystemMessage {
+                            message: new_player_message.clone(),
+                        })
+                        .await;
                 }
 
                 self.log("Registered").await;
@@ -375,73 +449,55 @@ impl Client {
                     return; // TODO: ponder
                 }
 
-                let game = self.game.clone().unwrap();
-
-                // TODO: check diff for cheating
-
-                // send chunk update
-
-                let mut chunk_coords = get_chunk_coords_visible_from(new_position);
-                let prev_chunk_coords = get_chunk_coords_visible_from(
-                    self.get_player_entity().await.clone().unwrap().position,
-                );
-
-                let prev_chunk_coords: HashSet<_> = prev_chunk_coords.into_iter().collect();
-
-                chunk_coords.retain(|x| !prev_chunk_coords.contains(x));
-
-                let chunk_data: Vec<_> = {
-                    let game_guard = game.lock().await;
-                    chunk_coords
-                        .into_iter()
-                        .map(|(x, y)| game_guard.get_chunk_data(x, y))
-                        .collect()
-                };
-
-                for (chunk, entities) in chunk_data {
-                    let packet = Packet::TerrainChunk { chunk };
-                    self.send(packet).await;
-
-                    for entity in entities {
-                        let packet = Packet::EntityLoad { entity };
-                        self.send(packet).await;
-                    }
-                }
-
-                // update position
-
-                if let Some(game_arc) = &self.game {
-                    let mut game_guard = game_arc.lock().await;
-                    if let Some(entity_mut) = game_guard.entity_map.get_mut(&self.id) {
-                        entity_mut.position = new_position;
-                    }
-                }
-
-                // send position update to others
-
-                let others: Vec<Client> = state
-                    .clients
-                    .values()
-                    .filter(|c| c.id != self.id)
-                    .cloned()
-                    .collect();
-
-                for client in others {
-                    client.send(Packet::EntityMove { id, new_position }).await;
-                }
+                self.move_player(new_position, state, false).await;
             }
 
             Packet::ChatMessageSend { message } => {
-                let all_clients: Vec<Client> = state
-                    .clients
-                    .values()
-                    .cloned()
-                    .collect();
+                let all_clients: Vec<Client> = state.clients.values().cloned().collect();
+
+                if message.starts_with('/') {
+                    let p = message.split(' ').collect::<Vec<&str>>();
+                    match &p[..] {
+                        ["/tp", username] => {
+                            let target_position = {
+                                if let Some(target_entity) =
+                                    self.get_player_entity_by_username(username).await
+                                {
+                                    target_entity.position
+                                } else {
+                                    self.send(Packet::SystemMessage {
+                                        message: format!("Player {} not found", username),
+                                    })
+                                    .await;
+                                    return;
+                                }
+                            };
+
+                            self.move_player(target_position, state, true).await;
+
+                            return;
+                        }
+                        _ => {
+                            self.send(Packet::SystemMessage {
+                                message: "Invalid command".to_string(),
+                            })
+                            .await;
+
+                            return;
+                        }
+                    }
+                }
 
                 let message_id = Uuid::new_v4();
-                for client in all_clients {
+                for client in &all_clients {
                     let sender_name = self.username.clone().unwrap();
-                    client.send(Packet::ChatMessage { id: message_id, message: message.clone(), username: sender_name }).await;
+                    client
+                        .send(Packet::ChatMessage {
+                            id: message_id,
+                            message: message.clone(),
+                            username: sender_name,
+                        })
+                        .await;
                 }
             }
 

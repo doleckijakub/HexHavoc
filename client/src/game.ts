@@ -84,6 +84,7 @@ class Game {
     private chatMessages = document.getElementById("game__chat__messages") as HTMLDivElement;
     private chatFocused = false;
 
+    private lastMouseEv: MouseEvent | null = null;
     private cursorTile: Vec2 | null = null;
 
     private constructor(ws: WebSocket) {
@@ -507,6 +508,12 @@ class Game {
                 )
             )!)) dy = 0;
 
+            if (dx == 0 && dy == 0) {
+                return;
+            }
+
+            this.updateCursorFromMouse(this.lastMouseEv);
+
             const desiredPosition = new Vec2(
                 player.position.x + dx,
                 player.position.y + dy
@@ -567,7 +574,12 @@ class Game {
         return new Vec2(wx, wy);
     }
 
-    private updateCursorFromMouse(ev: MouseEvent) {
+    private updateCursorFromMouse(ev: MouseEvent | null) {
+        if (ev == null) {
+            this.cursorTile = null;
+            return;
+        }
+        
         const rect = this.canvas.getBoundingClientRect();
 
         const mx = ev.clientX - rect.left;
@@ -593,6 +605,12 @@ class Game {
                 e.preventDefault();
                 this.chatInput.focus();
             }
+
+            if (e.code === 'Slash' && !this.chatFocused) {
+                e.preventDefault();
+                this.chatInput.focus();
+                this.chatInput.value = '/';
+            }
         });
 
         window.addEventListener("keyup", e => {
@@ -600,7 +618,7 @@ class Game {
         });
 
         this.canvas.addEventListener("mousemove", ev => {
-            this.updateCursorFromMouse(ev);
+            this.updateCursorFromMouse(this.lastMouseEv = ev);
         });
 
         this.canvas.addEventListener("mouseleave", () => {
