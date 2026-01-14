@@ -93,6 +93,7 @@ pub struct Game {
 #[derive(Clone)]
 pub struct Client {
     pub id: Uuid,
+    pub username: Option<String>,
     pub ws_session: Arc<Mutex<actix_ws::Session>>,
     pub game: Option<Arc<Mutex<Game>>>,
 }
@@ -294,6 +295,8 @@ impl Client {
                     return;
                 }
 
+                self.username = Some(username.clone());
+
                 game_guard.usernames.insert(username.clone());
 
                 state.clients.insert(self.id, self.clone());
@@ -343,7 +346,7 @@ impl Client {
                     }
                 }
 
-                for client in game_clients {
+                for client in &game_clients {
                     client
                         .send(Packet::EntityLoad {
                             entity: entity.clone(),
@@ -358,6 +361,11 @@ impl Client {
                 }
 
                 self.send(Packet::PlayerRegistered { id: self.id }).await;
+
+                let new_player_message = format!("{} joined the game", self.username.clone().unwrap());
+                for client in &game_clients {
+                    client.send(Packet::SystemMessage { message: new_player_message.clone() }).await;
+                }
 
                 self.log("Registered").await;
             }
@@ -420,6 +428,20 @@ impl Client {
 
                 for client in others {
                     client.send(Packet::EntityMove { id, new_position }).await;
+                }
+            }
+
+            Packet::ChatMessageSend { message } => {
+                let all_clients: Vec<Client> = state
+                    .clients
+                    .values()
+                    .cloned()
+                    .collect();
+
+                let message_id = Uuid::new_v4();
+                for client in all_clients {
+                    let sender_name = self.username.clone().unwrap();
+                    client.send(Packet::ChatMessage { id: message_id, message: message.clone(), username: sender_name }).await;
                 }
             }
 
