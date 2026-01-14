@@ -147,7 +147,7 @@ export class EntityShader extends Shader {
 
         const sprite = SPRITE_MAP.get(entity_type);
         if (sprite) {
-            return this.dispatchSpriteRender(x, y, sprite.layer, sprite.x, sprite.y, sprite.w, sprite.h);
+            return this.dispatchSpriteRender(x, y - 0.5, sprite.layer, sprite.x, sprite.y, sprite.w, sprite.h);
         }
 
         switch (entity_type) {

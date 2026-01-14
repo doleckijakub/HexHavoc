@@ -8,7 +8,8 @@ import type {
     EntityLoadPacket,
     EntityMovePacket,
     ChatMessagePacket,
-    SystemMessagePacket
+    SystemMessagePacket,
+    TerrainTileType
 } from '@type';
 
 import { Renderer } from '@render';
@@ -29,7 +30,12 @@ const DIRECTION_SW = iota++;
 const DIRECTION_W = iota++;
 const DIRECTION_NW = iota++;
 
-const ENTITY_RADIUS = 1;
+const ENTITY_SIZE = 0.75;
+
+const NON_WALKABLE_TILES = new Set<TerrainTileType>([
+    "Water",
+    "DeepWater",
+]);
 
 function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|number {
     const { x, y } = newPosition.sub(position);
@@ -314,6 +320,24 @@ class Game {
         return player;
     }
 
+    private getTerrainTileAt(pos: Vec2): TerrainTileType | null {
+        pos = new Vec2(pos.x + 0.5, pos.y + 0.5);
+        
+        const cx = Math.floor(pos.x / 8);
+        const cy = Math.floor(pos.y / 8);
+
+        const chunk = this.terrain.get(`${cx}:${cy}`);
+        if (!chunk) return null;
+
+        const lx = Math.floor(pos.x - cx * 8);
+        const ly = Math.floor(pos.y - cy * 8);
+
+        if (lx < 0 || ly < 0 || lx >= 8 || ly >= 8) return null;
+
+        const index = ly * 8 + lx;
+        return chunk.contents[index] ?? null;
+    }
+
     private loop(now: number) {
         this.render(now);
         this.update(now);
@@ -353,16 +377,21 @@ class Game {
 
         // hitboxes
 
-        // for (let entity of this.entities.values()) {
+        // for (const ent of this.entities.values()) {
+        //     const dx = this.getPlayer()!.position.x - ent.position.x;
+        //     const dy = this.getPlayer()!.position.y - ent.position.y;
+
+        //     if (Math.hypot(dx, dy) > 8) continue;
+
         //     this.hitboxShader.renderHitbox(
-        //         entity.position.x,
-        //         entity.position.y,
-        //         ENTITY_RADIUS
+        //         ent.position.x,
+        //         ent.position.y,
+        //         ENTITY_SIZE
         //     );
         // }
     }
 
-    private resolveEntityCollisions(pos: Vec2): Vec2 {
+    private resolveCollisions(pos: Vec2): Vec2 {
         let corrected = new Vec2(pos.x, pos.y);
 
         for (const [id, ent] of this.entities) {
@@ -371,22 +400,24 @@ class Game {
             const dx = corrected.x - ent.position.x;
             const dy = corrected.y - ent.position.y;
 
-            const distSq = dx * dx + dy * dy;
-            const minDist = ENTITY_RADIUS;
+            if (Math.hypot(dx, dy) > 8) continue;
 
-            if (distSq >= minDist * minDist) continue;
+            const overlapX = ENTITY_SIZE - Math.abs(dx);
+            const overlapY = ENTITY_SIZE - Math.abs(dy);
 
-            const dist = Math.sqrt(distSq) || 0.0001;
+            if (overlapX <= 0 || overlapY <= 0) continue;
 
-            const nx = dx / dist;
-            const ny = dy / dist;
-
-            const penetration = minDist - dist;
-
-            corrected = new Vec2(
-                corrected.x + nx * penetration,
-                corrected.y + ny * penetration
-            );
+            if (overlapX < overlapY) {
+                corrected = new Vec2(
+                    corrected.x + Math.sign(dx) * overlapX,
+                    corrected.y
+                );
+            } else {
+                corrected = new Vec2(
+                    corrected.x,
+                    corrected.y + Math.sign(dy) * overlapY
+                );
+            }
         }
 
         return corrected;
@@ -447,12 +478,29 @@ class Game {
                 }
             }
 
+            dx *= dt * speed;
+            dy *= dt * speed;
+
+            if (NON_WALKABLE_TILES.has(this.getTerrainTileAt(
+                new Vec2(
+                    player.position.x + dx,
+                    player.position.y
+                )
+            )!)) dx = 0;
+
+            if (NON_WALKABLE_TILES.has(this.getTerrainTileAt(
+                new Vec2(
+                    player.position.x,
+                    player.position.y + dy
+                )
+            )!)) dy = 0;
+
             const desiredPosition = new Vec2(
-                player.position.x + dx * dt * speed,
-                player.position.y + dy * dt * speed
+                player.position.x + dx,
+                player.position.y + dy
             );
 
-            player.position = this.resolveEntityCollisions(desiredPosition);
+            player.position = this.resolveCollisions(desiredPosition);
 
             this.send({
                 packet_type: 'entity_move',

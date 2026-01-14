@@ -1,4 +1,5 @@
 import { Shader, type Renderer } from '@render';
+import { Color, type Entity } from '@core';
 
 import vert from './main.vert?raw';
 import frag from './main.frag?raw';
@@ -8,16 +9,17 @@ export class HitboxShader extends Shader {
         super(renderer.getContext(), vert, frag);
     }
 
-    renderHitbox(x: number, y: number, r: number) {
+    renderHitbox(x: number, y: number, s: number) {
         this.use();
 
         const gl = this.gl;
 
         const vertices = new Float32Array([
             -0.5, -0.5,
-            0.5, -0.5,
-            0.5,  0.5,
+             0.5, -0.5,
+             0.5,  0.5,
             -0.5,  0.5,
+            -0.5, -0.5,
         ]);
 
         const vbo = gl.createBuffer()!;
@@ -30,8 +32,7 @@ export class HitboxShader extends Shader {
 
         const offsets = new Float32Array([x, y]);
 
-        gl.uniform1f(this.getUniformLocation("u_radius"), r);
-        gl.uniform1f(this.getUniformLocation("u_thickness"), 0.05);
+        gl.uniform1f(this.getUniformLocation("u_entity_size"), s);
         const vp = this.renderer.getCameraMatrix();
         gl.uniformMatrix3fv(this.getUniformLocation("u_vp"), false, vp.arr());
 
@@ -44,7 +45,7 @@ export class HitboxShader extends Shader {
         gl.vertexAttribPointer(offsetLoc, 2, gl.FLOAT, false, 0, 0);
         gl.vertexAttribDivisor(offsetLoc, 1);
 
-        gl.drawArraysInstanced(gl.TRIANGLE_FAN, 0, 4, 1);
+        gl.drawArraysInstanced(gl.LINE_STRIP, 0, 5, 1);
 
         gl.disableVertexAttribArray(locUnit);
         gl.disableVertexAttribArray(offsetLoc);
