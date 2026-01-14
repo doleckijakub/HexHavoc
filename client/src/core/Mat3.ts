@@ -119,6 +119,33 @@ export class Mat3 {
     return mat;
   }
 
+  static invert(m: Mat3): Mat3 {
+    const e = m.arr();
+
+    const a = e[0], b = e[3];
+    const c = e[1], d = e[4];
+    const tx = e[6], ty = e[7];
+
+    const det = a * d - b * c;
+    if (det === 0) throw new Error("Non-invertible Mat3");
+
+    const invDet = 1 / det;
+
+    return Mat3.fromValues([
+        d * invDet,
+      -c * invDet,
+        0,
+
+      -b * invDet,
+        a * invDet,
+        0,
+
+      (b * ty - d * tx) * invDet,
+      (c * tx - a * ty) * invDet,
+        1,
+    ]);
+  }
+
   arr(): Float32Array {
     return this.elements;
   }

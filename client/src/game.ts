@@ -13,7 +13,7 @@ import type {
 } from '@type';
 
 import { Renderer } from '@render';
-import { Color, EntityPlayer, Vec2, type EntityType } from '@core';
+import { Color, EntityPlayer, Mat3, Vec2, type EntityType } from '@core';
 
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 import { HitboxShader } from '@render/shaders/hitbox/HitboxShader';
@@ -83,6 +83,8 @@ class Game {
     private chatInput = document.getElementById("game__chat__input") as HTMLInputElement;
     private chatMessages = document.getElementById("game__chat__messages") as HTMLDivElement;
     private chatFocused = false;
+
+    private cursorTile: Vec2 | null = null;
 
     private constructor(ws: WebSocket) {
         this.canvas = document.getElementById("gl") as HTMLCanvasElement;
@@ -389,6 +391,16 @@ class Game {
         //         ENTITY_SIZE
         //     );
         // }
+
+        // cursor
+
+        if (this.cursorTile) {
+            this.hitboxShader.renderHitbox(
+                this.cursorTile.x,
+                this.cursorTile.y,
+                1
+            );
+        }
     }
 
     private resolveCollisions(pos: Vec2): Vec2 {
@@ -532,6 +544,43 @@ class Game {
         }
     }
 
+    private screenToWorld(mx: number, my: number): Vec2 {
+        const rect = this.canvas.getBoundingClientRect();
+
+        const x = (mx / rect.width) * 2 - 1;
+        const y = 1 - (my / rect.height) * 2;
+
+        const v = new Float32Array([x, y, 1]);
+
+        const inv = Mat3.invert(this.renderer.getCameraMatrix());
+
+        const wx =
+            inv.arr()[0] * v[0] +
+            inv.arr()[3] * v[1] +
+            inv.arr()[6] * v[2];
+
+        const wy =
+            inv.arr()[1] * v[0] +
+            inv.arr()[4] * v[1] +
+            inv.arr()[7] * v[2];
+
+        return new Vec2(wx, wy);
+    }
+
+    private updateCursorFromMouse(ev: MouseEvent) {
+        const rect = this.canvas.getBoundingClientRect();
+
+        const mx = ev.clientX - rect.left;
+        const my = ev.clientY - rect.top;
+
+        const world = this.screenToWorld(mx, my);
+
+        this.cursorTile = new Vec2(
+            Math.floor(world.x + 0.5),
+            Math.floor(world.y + 0.5)
+        );
+    }
+
     public run() {
         this.lastLoopTimestamp = performance.now();
 
@@ -540,12 +589,23 @@ class Game {
         window.addEventListener("keydown", e => {
             this.keyboardState[e.code] = true && !this.chatFocused;
 
-            if (e.code === 'KeyY' && !this.chatFocused) {
+            if (e.code === 'Enter' && !this.chatFocused) {
                 e.preventDefault();
                 this.chatInput.focus();
             }
         });
-        window.addEventListener("keyup", e => this.keyboardState[e.code] = false && !this.chatFocused);
+
+        window.addEventListener("keyup", e => {
+            this.keyboardState[e.code] = false && !this.chatFocused;
+        });
+
+        this.canvas.addEventListener("mousemove", ev => {
+            this.updateCursorFromMouse(ev);
+        });
+
+        this.canvas.addEventListener("mouseleave", () => {
+            this.cursorTile = null;
+        });
 
         setInterval(() => this.ws.send(''), 20 * 1000);
         setInterval(this.animate.bind(this), 100);
