@@ -22,21 +22,21 @@ export class TextShader extends Shader {
         this.bufferCtx = this.bufferCanvas.getContext('2d')!;
 
         const gl = this.gl;
-        
+
         this.textTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.textTex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
         const quadVerts = new Float32Array([
-            -1, -1,  0, 0,
-             1, -1,  1, 0,
-            -1,  1,  0, 1,
-            -1,  1,  0, 1,
-             1, -1,  1, 0,
-             1,  1,  1, 1,
+            -1, -1, 0, 0,
+            1, -1, 1, 0,
+            -1, 1, 0, 1,
+            -1, 1, 0, 1,
+            1, -1, 1, 0,
+            1, 1, 1, 1,
         ]);
 
         this.vao = gl.createVertexArray();
@@ -47,7 +47,7 @@ export class TextShader extends Shader {
         gl.bufferData(gl.ARRAY_BUFFER, quadVerts, gl.STATIC_DRAW);
 
         const a_pos = this.getAttribLocation('a_pos');
-        const a_uv  = this.getAttribLocation('a_uv');
+        const a_uv = this.getAttribLocation('a_uv');
 
         gl.enableVertexAttribArray(a_pos);
         gl.vertexAttribPointer(a_pos, 2, gl.FLOAT, false, 16, 0);
@@ -68,7 +68,7 @@ export class TextShader extends Shader {
         ctx.fillRect(0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
 
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 32px monospace';
+        ctx.font = "32px 'Fusion Pixel 10px Proportional TC'";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(text, this.bufferCanvas.width / 2, this.bufferCanvas.height / 2);

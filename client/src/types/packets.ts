@@ -30,7 +30,29 @@ export interface PlayerRegisteredPacket {
     id: string,
 }
 
-export type Packet = 
-    EntityMovePacket | EntityLoadPacket |
+export interface ChatMessageSendPacket {
+    packet_type: 'chat_message_send',
+    message: string,
+}
+
+export interface ChatMessagePacket {
+    packet_type: 'chat_message',
+    id: string,
+    message: string,
+    username: string,
+}
+
+export interface SystemMessagePacket {
+    packet_type: 'system_message',
+    message: string,
+}
+
+export type Packet =
+    EntityMovePacket |
+    EntityLoadPacket |
     TerrainChunkPacket |
-    PlayerRegisterPacket | PlayerRegisteredPacket;
+    PlayerRegisterPacket |
+    PlayerRegisteredPacket |
+    ChatMessagePacket |
+    ChatMessageSendPacket |
+    SystemMessagePacket;

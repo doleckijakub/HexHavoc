@@ -23,6 +23,7 @@ async fn ws(
             id,
             ws_session: Arc::new(Mutex::new(session)),
             game: None,
+            username: None,
         };
 
         client.log("Connected").await;

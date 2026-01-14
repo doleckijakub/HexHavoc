@@ -1,10 +1,15 @@
+import '@fontsource/fusion-pixel-10px-proportional-tc';
+import '../global.css';
+
 import type {
     Packet,
     PlayerRegisteredPacket,
     TerrainChunkPacket,
     TerrainChunk,
     EntityLoadPacket,
-    EntityMovePacket
+    EntityMovePacket,
+    ChatMessagePacket,
+    SystemMessagePacket
 } from '@type';
 
 import { Renderer } from '@render';
@@ -25,22 +30,22 @@ const DIRECTION_SW = iota++;
 const DIRECTION_W = iota++;
 const DIRECTION_NW = iota++;
 
-function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|number {
+function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null | number {
     const { x, y } = newPosition.sub(position);
 
     const sx = Math.sign(x);
     const sy = Math.sign(y);
 
     switch (`${sx},${sy}`) {
-        case '0,1':   return DIRECTION_N;
-        case '1,1':   return DIRECTION_NE;
-        case '1,0':   return DIRECTION_E;
-        case '1,-1':  return DIRECTION_SE;
-        case '0,-1':  return DIRECTION_S;
+        case '0,1': return DIRECTION_N;
+        case '1,1': return DIRECTION_NE;
+        case '1,0': return DIRECTION_E;
+        case '1,-1': return DIRECTION_SE;
+        case '0,-1': return DIRECTION_S;
         case '-1,-1': return DIRECTION_SW;
-        case '-1,0':  return DIRECTION_W;
-        case '-1,1':  return DIRECTION_NW;
-        default:      return null;
+        case '-1,0': return DIRECTION_W;
+        case '-1,1': return DIRECTION_NW;
+        default: return null;
     }
 }
 
@@ -61,11 +66,16 @@ class Game {
     private terrain: Map<string, TerrainChunk> = new Map();
 
     private lastLoopTimestamp: number;
-    
+
     // TODO: remove?
+    private lastFpsUpdate: number = 0;
     private fpsSpan = document.getElementById('fps') as HTMLSpanElement;
     private positionSpan = document.getElementById('position') as HTMLSpanElement;
     private scaleSlider = document.getElementById("scale-slider") as HTMLInputElement;
+
+    private chatInput = document.getElementById("game__chat__input") as HTMLInputElement;
+    private chatMessages = document.getElementById("game__chat__messages") as HTMLDivElement;
+    private chatFocused = false;
 
     private constructor(ws: WebSocket) {
         this.canvas = document.getElementById("gl") as HTMLCanvasElement;
@@ -75,6 +85,30 @@ class Game {
         this.hitboxShader = new HitboxShader(this.renderer);
         this.textShader = new TextShader(this.renderer);
         this.entityShader = new EntityShader(this.renderer);
+
+        this.chatInput.addEventListener("keydown", ev => {
+            if (ev.key === "Enter") {
+                this.send({
+                    packet_type: "chat_message_send",
+                    message: this.chatInput.value,
+                });
+                this.chatInput.value = "";
+                setTimeout(() => this.chatInput.blur(), 0);
+            }
+
+            if (ev.key === "Escape") {
+                setTimeout(() => this.chatInput.blur(), 0);
+            }
+        });
+
+        this.chatInput.addEventListener("focus", () => {
+            this.chatFocused = true;
+        });
+
+        this.chatInput.addEventListener("blur", () => {
+            this.chatFocused = false;
+            this.chatInput.value = "";
+        });
 
         this.ws = ws;
     }
@@ -122,7 +156,7 @@ class Game {
     }
 
     private parsePacket(data: any): Packet {
-        const packet_type = data['packet_type']; 
+        const packet_type = data['packet_type'];
 
         switch (packet_type) {
             case 'player_registered': return {
@@ -150,14 +184,14 @@ class Game {
                 let entity: EntityType;
 
                 if (typeof value === 'string') {
-                    entity = <EntityType> {
+                    entity = <EntityType>{
                         id,
                         position,
                         entity_type: value
                     };
                 } else {
                     const entity_type = Object.keys(value)[0];
-                    
+
                     let e = {
                         id,
                         position,
@@ -170,7 +204,7 @@ class Game {
                         e.direction = DIRECTION_S;
                     }
 
-                    entity = <EntityType> e;
+                    entity = <EntityType>e;
                 }
 
                 return {
@@ -182,6 +216,16 @@ class Game {
                 packet_type,
                 id: data['id'],
                 new_position: Vec2.from(data['new_position']),
+            }
+            case 'chat_message': return {
+                packet_type,
+                id: data['id'],
+                username: data['username'],
+                message: data['message'],
+            }
+            case 'system_message': return {
+                packet_type,
+                message: data['message'],
             }
         }
 
@@ -205,10 +249,41 @@ class Game {
 
     private onPlayerRegistered(packet: PlayerRegisteredPacket) {
         this.playerId = packet.id;
+        const chatbox = document.getElementById('game__chat');
+        if (chatbox) {
+            chatbox.style.display = 'flex';
+        }
     }
 
     private onTerrainChunk(packet: TerrainChunkPacket) {
         this.terrain.set(`${packet.chunk.position.x}:${packet.chunk.position.y}`, packet.chunk);
+    }
+
+    private onChatMessage(packet: ChatMessagePacket) {
+        const message = document.createElement('div');
+        message.classList.add('game__chat__message');
+        const playerName = document.createElement('span');
+        playerName.textContent = packet.username;
+        playerName.classList.add('game__chat__message__username');
+        message.appendChild(playerName);
+        const playerMessage = document.createElement('span');
+        playerMessage.textContent = `: ${packet.message}`;
+        message.appendChild(playerMessage);
+
+        this.chatMessages.appendChild(message);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    }
+
+    private onSystemMessage(packet: SystemMessagePacket) {
+        const message = document.createElement('div');
+        message.classList.add('game__chat__message');
+        const systemMessage = document.createElement('span');
+        systemMessage.textContent = packet.message;
+        systemMessage.classList.add('game__chat__message__system');
+        message.appendChild(systemMessage);
+
+        this.chatMessages.appendChild(message);
+        this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     }
 
     private recv(packet: Packet) {
@@ -217,6 +292,8 @@ class Game {
             case 'entity_move': this.onEntityMove(packet); break;
             case 'player_registered': this.onPlayerRegistered(packet); break;
             case 'terrain_chunk': this.onTerrainChunk(packet); break;
+            case 'chat_message': this.onChatMessage(packet); break;
+            case 'system_message': this.onSystemMessage(packet); break;
             default: console.warn(`No handler found for packet of type "${packet.packet_type}"`);
         }
     }
@@ -225,7 +302,7 @@ class Game {
         this.ws.send(JSON.stringify(packet));
     }
 
-    private getPlayer(): EntityPlayer|null {
+    private getPlayer(): EntityPlayer | null {
         if (!this.playerId) return null;
 
         const player = this.entities.get(this.playerId);
@@ -264,11 +341,13 @@ class Game {
         for (let entity of this.entities.values()) {
             if (entity.entity_type != 'player') continue;
 
-            if (entity.id != this.playerId) this.textShader.renderText(
-                entity.username,
-                entity.position.x,
-                entity.position.y + 1
-            );
+            if (entity.id != this.playerId) {
+                this.textShader.renderText(
+                    entity.username,
+                    entity.position.x,
+                    entity.position.y + 1
+                );
+            }
         }
 
         // hitboxes
@@ -302,7 +381,10 @@ class Game {
         const dt = (now - this.lastLoopTimestamp) / 1000;
         this.lastLoopTimestamp = now;
 
-        if (Math.floor(now / 10) % 10 == 0) this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
+        if (now - this.lastFpsUpdate > 100) {
+            this.fpsSpan.innerText = `FPS: ${Math.round(1 / dt)}`;
+            this.lastFpsUpdate = now;
+        }
         this.positionSpan.innerText = `x: ${Math.round(player.position.x)} y: ${Math.round(player.position.y)}`;
 
         const speed = this.keyboardState["ShiftLeft"] ? 80 : 8;
@@ -319,7 +401,7 @@ class Game {
 
             for (let loc of this.terrain.keys()) {
                 const [scx, scy] = loc.split(':');
-                
+
                 const [cx, cy] = [
                     Number.parseInt(scx),
                     Number.parseInt(scy)
@@ -337,7 +419,7 @@ class Game {
 
             for (let id of this.entities.keys()) {
                 const { entity_type, position: { x, y } } = this.entities.get(id)!;
-                
+
                 if (entity_type == 'player') continue; // TODO: actually remove // TODO(server): recieve back upon load
 
                 if (Math.hypot(player.position.x - x, player.position.y - y) > 100) {
@@ -387,8 +469,15 @@ class Game {
 
         requestAnimationFrame(this.loop.bind(this));
 
-        window.addEventListener("keydown", e => this.keyboardState[e.code] = true);
-        window.addEventListener("keyup", e => this.keyboardState[e.code] = false);
+        window.addEventListener("keydown", e => {
+            this.keyboardState[e.code] = true && !this.chatFocused;
+
+            if (e.code === 'KeyY' && !this.chatFocused) {
+                e.preventDefault();
+                this.chatInput.focus();
+            }
+        });
+        window.addEventListener("keyup", e => this.keyboardState[e.code] = false && !this.chatFocused);
 
         setInterval(() => this.ws.send(''), 20 * 1000);
         setInterval(this.animate.bind(this), 100);
@@ -413,7 +502,7 @@ function startGame() {
         }
 
         const skin = parseInt(skinInput.value);
-            
+
         formDiv.remove();
         gameDiv.removeAttribute('style');
 
