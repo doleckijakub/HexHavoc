@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HexHavoc</title>
 </head>
+
 <body>
   <form id="new-game-form" method="POST" action="/new_game">
     <label>Game name: <input type="text" name="name" required></label><br />
@@ -97,7 +99,7 @@
     ];
 
     const new_game_form = document.querySelector("#new-game-form");
-    
+
     {
       const random_adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
       const random_noun = nouns[Math.floor(Math.random() * nouns.length)];
@@ -108,4 +110,5 @@
     new_game_form.querySelector('input[name=seed]').value = Math.floor(Math.random() * Math.pow(2, 32));
   </script>
 </body>
+
 </html>

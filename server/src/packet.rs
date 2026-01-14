@@ -38,4 +38,17 @@ pub enum Packet {
 
     #[serde(rename = "entity_move")]
     EntityMove { id: Uuid, new_position: Vec2 },
+
+    #[serde(rename = "chat_message_send")]
+    ChatMessageSend { message: String },
+
+    #[serde(rename = "chat_message")]
+    ChatMessage { 
+        id: Uuid, 
+        message: String, 
+        username: String 
+    },
+
+    #[serde(rename = "system_message")]
+    SystemMessage { message: String },
 }

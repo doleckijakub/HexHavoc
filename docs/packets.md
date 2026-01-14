@@ -30,6 +30,36 @@ iii. Username taken
 }
 ```
 
+### Chat related packets
+
+1. *client &rarr; server*
+```json
+{
+  "packet_type": "chat_message_send",
+  "message": "{{ MESSAGE }}"
+}
+```
+
+2. *server &rarr; client*
+i. Success
+```json
+{
+  "packet_type": "chat_message",
+  "id": "{{ MESSAGE_ID }}",
+  "username": "{{ USERNAME }}",
+  "message": "{{ MESSAGE }}"
+}
+```
+
+3. *server &rarr; client*
+i. System message
+```json
+{
+  "packet_type": "system_message",
+  "message": "{{ MESSAGE }}"
+}
+```
+
 ### Terrain updates
 **Updates are sent automatically and do not need to be requested**
 ```json
