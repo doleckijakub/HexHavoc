@@ -1,5 +1,4 @@
 import '@fontsource/fusion-pixel-10px-proportional-tc';
-import '../global.css';
 
 import type {
     Packet,
