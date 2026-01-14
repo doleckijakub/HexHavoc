@@ -25,6 +25,8 @@ const DIRECTION_SW = iota++;
 const DIRECTION_W = iota++;
 const DIRECTION_NW = iota++;
 
+const ENTITY_RADIUS = 1;
+
 function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|number {
     const { x, y } = newPosition.sub(position);
 
@@ -273,24 +275,43 @@ class Game {
 
         // hitboxes
 
-        // for (let chunk of this.terrain.values()) {
-        //     hitboxShader.renderHitbox(
-        //         chunk.position.x * 8 + 3.5,
-        //         chunk.position.y * 8 + 3.5,
-        //         8,
-        //         8
-        //     );
-        // }
-
         // for (let entity of this.entities.values()) {
-        //     // TODO: switch (entity.type)
-        //     hitboxShader.renderHitbox(
+        //     this.hitboxShader.renderHitbox(
         //         entity.position.x,
         //         entity.position.y,
-        //         0.8,
-        //         0.8
+        //         ENTITY_RADIUS
         //     );
         // }
+    }
+
+    private resolveEntityCollisions(pos: Vec2): Vec2 {
+        let corrected = new Vec2(pos.x, pos.y);
+
+        for (const [id, ent] of this.entities) {
+            if (id === this.playerId) continue;
+
+            const dx = corrected.x - ent.position.x;
+            const dy = corrected.y - ent.position.y;
+
+            const distSq = dx * dx + dy * dy;
+            const minDist = ENTITY_RADIUS;
+
+            if (distSq >= minDist * minDist) continue;
+
+            const dist = Math.sqrt(distSq) || 0.0001;
+
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            const penetration = minDist - dist;
+
+            corrected = new Vec2(
+                corrected.x + nx * penetration,
+                corrected.y + ny * penetration
+            );
+        }
+
+        return corrected;
     }
 
     private update(now: number) {
@@ -345,12 +366,12 @@ class Game {
                 }
             }
 
-            const newPosition = new Vec2(
+            const desiredPosition = new Vec2(
                 player.position.x + dx * dt * speed,
                 player.position.y + dy * dt * speed
             );
 
-            player.position = newPosition;
+            player.position = this.resolveEntityCollisions(desiredPosition);
 
             this.send({
                 packet_type: 'entity_move',
