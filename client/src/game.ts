@@ -16,12 +16,13 @@ import type {
 } from '@type';
 
 import { Renderer } from '@render';
-import { Color, EntityPlayer, Mat3, Vec2, type EntityType } from '@core';
+import { Color, Entity, EntityPlayer, Mat3, Vec2, type EntityType } from '@core';
 
 import { TerrainShader } from '@render/shaders/terrain/TerrainShader';
 import { HitboxShader } from '@render/shaders/hitbox/HitboxShader';
 import { TextShader } from '@render/shaders/text/TextShader';
 import { EntityShader } from '@render/shaders/entity/EntityShader';
+import { HealthBarShader } from '@render/shaders/healthbar/HealthBarShader';
 
 let iota = 0;
 const DIRECTION_N = iota++;
@@ -70,6 +71,7 @@ class Game {
     private hitboxShader: HitboxShader;
     private textShader: TextShader;
     private entityShader: EntityShader;
+    private healthBarShader: HealthBarShader;
 
     private playerId?: string;
     private entities: Map<string, EntityType> = new Map();
@@ -98,6 +100,7 @@ class Game {
         this.hitboxShader = new HitboxShader(this.renderer);
         this.textShader = new TextShader(this.renderer);
         this.entityShader = new EntityShader(this.renderer);
+        this.healthBarShader = new HealthBarShader(this.renderer);
 
         this.chatInput.addEventListener("keydown", ev => {
             if (ev.key === "Enter") {
@@ -410,21 +413,26 @@ class Game {
 
         for (let entity of this.entities.values()) {
             if (entity.entity_type == 'player') {
-                // if (entity.id != this.playerId) {
+                if (entity.id != this.playerId) {
                     this.textShader.renderText(
                         entity.username,
                         entity.position.x,
                         entity.position.y + 1.5
                     );
-                // }
+                }
             }
 
             if (entity.id != this.playerId) {
-                this.textShader.renderText(
-                    entity.health.toString(),
-                    entity.position.x,
-                    entity.position.y - 1
-                );
+                const max_health = this.getMaxHealth(entity);
+
+                if (entity.health < max_health) {
+                    this.healthBarShader.renderHealthBar(
+                        entity.position.x,
+                        entity.position.y - 1,
+                        entity.health,
+                        max_health
+                    );
+                }
             }
         }
 
@@ -451,6 +459,13 @@ class Game {
                 this.cursorTile.y,
                 1
             );
+        }
+    }
+
+    private getMaxHealth(entity: EntityType): number {
+        switch (entity.entity_type) {
+            case 'player': return 100;
+            default: return 25;
         }
     }
 

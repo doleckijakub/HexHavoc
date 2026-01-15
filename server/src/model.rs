@@ -406,8 +406,18 @@ impl Client {
             _ => return,
         };
 
-        let (target_id, new_health, target_was_alive, game_id) = {
+        let (target_id, new_health, target_was_alive, game_id, attacker, victim) = {
             let mut game = game_arc.lock().await;
+
+            let attacker = if let Entity {
+                value: EntityType::Player(p),
+                ..
+            } = game.entity_map.get(&self.id).unwrap()
+            {
+                Some(p.clone())
+            } else {
+                None
+            };
 
             let mut hit: Option<Uuid> = None;
             let mut best_dist = f32::MAX;
@@ -424,14 +434,30 @@ impl Client {
             }
 
             let Some(target_id) = hit else { return };
-            println!("{} hit {}", self.id, target_id);
 
             let target = game.entity_map.get_mut(&target_id).unwrap();
             target.health -= ATTACK_DAMAGE;
             let new_health = target.health;
             let target_was_alive = new_health > 0;
 
-            (target_id, new_health, target_was_alive, game.id)
+            let victim = if let Entity {
+                value: EntityType::Player(p),
+                ..
+            } = target.clone()
+            {
+                Some(p.clone())
+            } else {
+                None
+            };
+
+            (
+                target_id,
+                new_health,
+                target_was_alive,
+                game.id,
+                attacker,
+                victim,
+            )
         };
 
         for client in state.clients.values() {
@@ -458,8 +484,19 @@ impl Client {
                 for client in state.clients.values() {
                     if let Some(client_game) = &client.game {
                         let cg = client_game.lock().await;
+
                         if cg.client_sees_entity(client.id, &target_id) {
                             client.send(Packet::EntityDeath { id: target_id }).await;
+                        }
+
+                        if let Some(a) = attacker.clone()
+                            && let Some(v) = victim.clone()
+                        {
+                            client
+                                .send(Packet::SystemMessage {
+                                    message: format!("{} was killed by {}", v.username, a.username),
+                                })
+                                .await;
                         }
                     }
                 }
