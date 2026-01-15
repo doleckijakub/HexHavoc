@@ -3,6 +3,7 @@ import type { Vec2 } from "./Vec2";
 export class Entity {
     id: string;
     position: Vec2;
+    health: number;
 }
 
 export class EntityPlayer extends Entity {

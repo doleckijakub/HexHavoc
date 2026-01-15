@@ -6,11 +6,20 @@ import frag from './main.frag?raw';
 const MAX_TEXT_WIDTH = 512;
 const MAX_TEXT_HEIGHT = 64;
 
+const PIXELS_PER_UNIT = 16;
+
+type CachedText = {
+    tex: WebGLTexture;
+    width: number;
+    height: number;
+};
+
 export class TextShader extends Shader {
     private bufferCanvas: HTMLCanvasElement;
     private bufferCtx: CanvasRenderingContext2D;
     private textTex: WebGLTexture | null = null;
     private vao: WebGLVertexArrayObject | null = null;
+    private cache = new Map<string, CachedText>();
 
     constructor(private renderer: Renderer) {
         super(renderer.getContext(), vert, frag);
@@ -59,54 +68,104 @@ export class TextShader extends Shader {
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
     }
 
+    private createTextTexture(text: string): CachedText {
+    const gl = this.gl;
+    const ctx = this.bufferCtx;
+
+    const fontSize = 10;
+    const font = `${fontSize}px 'Fusion Pixel 10px Proportional TC'`;
+
+    ctx.font = font;
+    const metrics = ctx.measureText(text);
+    const w = Math.ceil(metrics.width) + 4;
+    const h = fontSize + 4;
+
+    this.bufferCanvas.width = w;
+    this.bufferCanvas.height = h;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'black';
+    ctx.fillStyle = 'white';
+    ctx.imageSmoothingEnabled = false;
+
+    const cx = w / 2;
+    const cy = h / 2;
+
+    ctx.strokeText(text, cx, cy);
+    ctx.fillText(text, cx, cy);
+
+    const tex = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        this.bufferCanvas
+    );
+
+    return { tex, width: w, height: h };
+}
+
+
     renderText(text: string, x: number, y: number) {
+        let entry = this.cache.get(text);
+        if (!entry) {
+            entry = this.createTextTexture(text);
+            this.cache.set(text, entry);
+        }
+
         const gl = this.gl;
-        const ctx = this.bufferCtx;
-
-        ctx.clearRect(0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-        ctx.fillRect(0, 0, this.bufferCanvas.width, this.bufferCanvas.height);
-
-        ctx.fillStyle = 'white';
-        ctx.font = "32px 'Fusion Pixel 10px Proportional TC'";
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, this.bufferCanvas.width / 2, this.bufferCanvas.height / 2);
-
-        gl.bindTexture(gl.TEXTURE_2D, this.textTex);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            this.bufferCanvas
-        );
 
         this.use();
 
-        const vp = this.renderer.getCameraMatrix();
-        gl.uniformMatrix3fv(this.getUniformLocation('u_vp'), false, vp.arr());
+        gl.uniformMatrix3fv(
+            this.getUniformLocation('u_vp'),
+            false,
+            this.renderer.getCameraMatrix().arr()
+        );
 
-        gl.uniform1i(this.getUniformLocation('u_text'), 0);
-        gl.uniform2f(this.getUniformLocation('u_pos'), x, y);
-        gl.uniform2f(this.getUniformLocation('u_size'), MAX_TEXT_WIDTH, MAX_TEXT_HEIGHT);
+        gl.uniform2f(
+            this.getUniformLocation('u_pos'),
+            x,
+            y
+        );
+
+        gl.uniform2f(
+            this.getUniformLocation('u_size'),
+            entry.width,
+            entry.height
+        );
+
+        gl.uniform1f(
+            this.getUniformLocation('u_ppu'),
+            PIXELS_PER_UNIT
+        );
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.textTex);
+        gl.bindTexture(gl.TEXTURE_2D, entry.tex);
+        gl.uniform1i(this.getUniformLocation('u_text'), 0);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        const wasDepthTestEnabled = gl.isEnabled(gl.DEPTH_TEST);
         gl.disable(gl.DEPTH_TEST);
 
         gl.bindVertexArray(this.vao);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.bindVertexArray(null);
 
-        if (wasDepthTestEnabled) gl.enable(gl.DEPTH_TEST);
         gl.disable(gl.BLEND);
-
-        this.finish();
     }
 }

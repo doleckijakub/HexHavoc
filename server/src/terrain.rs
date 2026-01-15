@@ -121,7 +121,7 @@ impl TerrainGenerator {
         }
     }
 
-    fn get_tile(&self, x: f64, y: f64) -> TileType {
+    pub fn get_tile(&self, x: f64, y: f64) -> TileType {
         const HWF: f64 = WORLD_SIZE as f64 / 2.0;
         const WATER_EDGE_SIZE_F: f64 = WATER_EDGE_SIZE as f64;
 
@@ -181,20 +181,19 @@ impl TerrainGenerator {
                 Uuid::new_v4(),
                 Vec2::new(x as f32, y as f32),
                 ty,
+                MAX_WORLD_ENTITY_HEALTH,
             ));
         }
 
         None
     }
 
-    pub fn get_contents(&self, x: i32, y: i32) -> (TileType, Option<Entity>) {
+    pub fn get_entity(&self, x: i32, y: i32) -> Option<Entity> {
         let x = x as f64;
         let y = y as f64;
 
         let tile = self.get_tile(x, y);
-        let entity = self.get_entity_from_tile(x, y, tile);
-
-        (tile, entity)
+        self.get_entity_from_tile(x, y, tile)
     }
 }
 

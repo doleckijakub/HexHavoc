@@ -78,6 +78,7 @@ pub struct Entity {
     pub id: Uuid,
     pub position: Vec2,
     pub value: EntityType,
+    pub health: i32,
 }
 
 pub struct Game {
@@ -86,6 +87,7 @@ pub struct Game {
 
     pub entity_map: HashMap<Uuid, Entity>,
     usernames: HashSet<String>,
+    pub client_entity_view: HashMap<Uuid, HashSet<Uuid>>,
 
     terrain_generator: TerrainGenerator,
 }
@@ -133,11 +135,12 @@ fn get_chunk_coords_visible_from(position: Vec2) -> Vec<(i32, i32)> {
 }
 
 impl Entity {
-    pub fn new(id: Uuid, position: Vec2, value: EntityType) -> Self {
+    pub fn new(id: Uuid, position: Vec2, value: EntityType, health: i32) -> Self {
         Self {
             id,
             position,
             value,
+            health,
         }
     }
 
@@ -146,6 +149,7 @@ impl Entity {
             id,
             position,
             EntityType::Player(EntityPlayer { username, skin }),
+            MAX_PLAYER_HEALTH,
         )
     }
 }
@@ -160,14 +164,26 @@ impl Game {
     }
 
     pub fn new(id: Uuid, name: String, seed: u32) -> Self {
+        let terrain_generator = TerrainGenerator::new(seed);
+        let mut entity_map = HashMap::new();
+
+        for x in 0..WORLD_SIZE {
+            for y in 0..WORLD_SIZE {
+                if let Some(ent) = terrain_generator.get_entity(x, y) {
+                    entity_map.insert(ent.id, ent);
+                }
+            }
+        }
+
         Self {
             id,
             name,
 
-            entity_map: HashMap::new(),
+            entity_map,
             usernames: HashSet::new(),
+            client_entity_view: HashMap::new(),
 
-            terrain_generator: TerrainGenerator::new(seed),
+            terrain_generator,
         }
     }
 
@@ -180,39 +196,53 @@ impl Game {
             let x = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE - NO_SPAWN_BORDER);
             let y = rng.random_range(NO_SPAWN_BORDER..WORLD_SIZE - NO_SPAWN_BORDER);
 
-            match self.terrain_generator.get_contents(x, y) {
-                (TileType::Water | TileType::DeepWater, _) => continue,
-                (_, Some(_)) => continue,
-                _ => return Vec2::new(x as f32, y as f32),
+            match self.terrain_generator.get_tile(x as f64, y as f64) {
+                TileType::Water | TileType::DeepWater => continue,
+                _ => {}
             }
+
+            // TODO: if an entity is here, continue
+
+            return Vec2::new(x as f32, y as f32);
         }
     }
 
-    pub fn get_chunk_data(&self, x: i32, y: i32) -> (TerrainChunk, Vec<Entity>) {
+    pub fn get_chunk_data(&self, x: i32, y: i32) -> TerrainChunk {
         let mut tiles = vec![];
-        let mut entities = vec![];
 
         for cy in 0..CHUNK_SIZE {
             for cx in 0..CHUNK_SIZE {
-                let tile_data = self
+                let tile = self
                     .terrain_generator
-                    .get_contents(CHUNK_SIZE * x + cx, CHUNK_SIZE * y + cy);
+                    .get_tile((CHUNK_SIZE * x + cx) as f64, (CHUNK_SIZE * y + cy) as f64);
 
-                tiles.push(tile_data.0);
-
-                if let Some(entity) = tile_data.1 {
-                    entities.push(entity);
-                }
+                tiles.push(tile);
             }
         }
 
-        (
-            TerrainChunk {
-                position: Vec2::new(x as f32, y as f32),
-                contents: tiles,
-            },
-            entities,
-        )
+        TerrainChunk {
+            position: Vec2::new(x as f32, y as f32),
+            contents: tiles,
+        }
+    }
+
+    pub fn add_entity_to_client_view(&mut self, client_id: Uuid, entity_id: Uuid) {
+        self.client_entity_view
+            .entry(client_id)
+            .or_default()
+            .insert(entity_id);
+    }
+
+    pub fn remove_entity_from_client_view(&mut self, client_id: Uuid, entity_id: &Uuid) {
+        if let Some(set) = self.client_entity_view.get_mut(&client_id) {
+            set.remove(entity_id);
+        }
+    }
+
+    pub fn client_sees_entity(&self, client_id: Uuid, entity_id: &Uuid) -> bool {
+        self.client_entity_view
+            .get(&client_id)
+            .is_some_and(|set| set.contains(entity_id))
     }
 }
 
@@ -309,14 +339,49 @@ impl Client {
             .filter(|c| !prev_chunks.contains(c))
             .collect();
 
-        for (x, y) in new_chunks {
-            let (chunk, entities) = game_guard.get_chunk_data(x, y);
+        for (x, y) in new_chunks.clone() {
+            let chunk = game_guard.get_chunk_data(x, y);
 
             self.send(Packet::TerrainChunk { chunk }).await;
+        }
 
-            for entity in entities {
-                self.send(Packet::EntityLoad { entity }).await;
+        let mut newly_visible = Vec::new();
+        let mut no_longer_visible = Vec::new();
+
+        for entity in game_guard.entity_map.values() {
+            let entity_chunk = (
+                (entity.position.x / CHUNK_SIZE as f32).floor() as i32,
+                (entity.position.y / CHUNK_SIZE as f32).floor() as i32,
+            );
+
+            if game_guard
+                .client_entity_view
+                .get(&self.id)
+                .is_some_and(|set| set.contains(&entity.id))
+            {
+                if (entity.position.x - new_position.x).hypot(entity.position.y - new_position.y)
+                    > 100.0
+                {
+                    no_longer_visible.push(entity.id);
+                }
+            } else if new_chunks.contains(&entity_chunk) {
+                newly_visible.push(entity.id);
             }
+        }
+
+        for entity_id in newly_visible {
+            if let Some(entity) = game_guard.entity_map.get(&entity_id) {
+                self.send(Packet::EntityLoad {
+                    entity: entity.clone(),
+                })
+                .await;
+                game_guard.add_entity_to_client_view(self.id, entity_id);
+            }
+        }
+
+        for entity_id in no_longer_visible {
+            self.send(Packet::EntityUnload { id: entity_id }).await;
+            game_guard.remove_entity_from_client_view(self.id, &entity_id);
         }
 
         let all_clients: Vec<Client> = state.clients.values().cloned().collect();
@@ -332,6 +397,73 @@ impl Client {
                     new_position,
                 })
                 .await;
+        }
+    }
+
+    async fn handle_attack(&self, cursor: Vec2, state: &mut ServerState) {
+        let game_arc = match &self.game {
+            Some(g) => g.clone(),
+            _ => return,
+        };
+
+        let (target_id, new_health, target_was_alive, game_id) = {
+            let mut game = game_arc.lock().await;
+
+            let mut hit: Option<Uuid> = None;
+            let mut best_dist = f32::MAX;
+
+            for (id, entity) in &game.entity_map {
+                if *id == self.id {
+                    continue;
+                }
+                let dist = (entity.position.x - cursor.x).hypot(entity.position.y - cursor.y);
+                if dist < ATTACK_RANGE && dist < best_dist {
+                    best_dist = dist;
+                    hit = Some(*id);
+                }
+            }
+
+            let Some(target_id) = hit else { return };
+            println!("{} hit {}", self.id, target_id);
+
+            let target = game.entity_map.get_mut(&target_id).unwrap();
+            target.health -= ATTACK_DAMAGE;
+            let new_health = target.health;
+            let target_was_alive = new_health > 0;
+
+            (target_id, new_health, target_was_alive, game.id)
+        };
+
+        for client in state.clients.values() {
+            if let Some(client_game) = &client.game {
+                let cg = client_game.lock().await;
+                if cg.id == game_id && cg.client_sees_entity(client.id, &target_id) {
+                    client
+                        .send(Packet::EntityDamage {
+                            id: target_id,
+                            new_health,
+                        })
+                        .await;
+                }
+            }
+        }
+
+        if !target_was_alive {
+            let removed = {
+                let mut game = game_arc.lock().await;
+                game.entity_map.remove(&target_id)
+            };
+
+            if removed.is_some() {
+                for client in state.clients.values() {
+                    if let Some(client_game) = &client.game {
+                        let cg = client_game.lock().await;
+                        if cg.client_sees_entity(client.id, &target_id) {
+                            client.send(Packet::EntityDeath { id: target_id }).await;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -383,14 +515,9 @@ impl Client {
                     .map(|(x, y)| game_guard.get_chunk_data(x, y))
                     .collect();
 
-                for (chunk, entities) in chunk_data {
+                for chunk in chunk_data {
                     let packet = Packet::TerrainChunk { chunk };
                     self.send(packet).await;
-
-                    for entity in entities {
-                        let packet = Packet::EntityLoad { entity };
-                        self.send(packet).await;
-                    }
                 }
 
                 let player_ids: Vec<_> = game_guard
@@ -402,7 +529,41 @@ impl Client {
                     })
                     .collect();
 
+                let entities_to_load = {
+                    let mut entities_to_load = vec![];
+
+                    let visible_chunks: HashSet<_> = get_chunk_coords_visible_from(position)
+                        .into_iter()
+                        .collect();
+
+                    for other_entity in game_guard.entity_map.values() {
+                        let entity_chunk = (
+                            (other_entity.position.x / CHUNK_SIZE as f32).floor() as i32,
+                            (other_entity.position.y / CHUNK_SIZE as f32).floor() as i32,
+                        );
+
+                        if visible_chunks.contains(&entity_chunk)
+                            && !game_guard.client_sees_entity(self.id, &other_entity.id)
+                        {
+                            entities_to_load.push(other_entity.clone());
+                        }
+                    }
+
+                    entities_to_load
+                };
+
+                for entity in entities_to_load {
+                    self.send(Packet::EntityLoad {
+                        entity: entity.clone(),
+                    })
+                    .await;
+
+                    game_guard.add_entity_to_client_view(self.id, entity.id);
+                }
+
                 drop(game_guard);
+
+                self.move_player(position, state, false).await;
 
                 let mut game_clients: Vec<Client> = Vec::new();
 
@@ -499,6 +660,10 @@ impl Client {
                         })
                         .await;
                 }
+            }
+
+            Packet::PlayerAttack { cursor_world_pos } => {
+                self.handle_attack(cursor_world_pos, state).await;
             }
 
             other => {

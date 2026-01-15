@@ -143,7 +143,7 @@ export class EntityShader extends Shader {
     dispatchEntityRender(
         entity: EntityType
     ) {
-        const { entity_type, position: { x, y } } = entity;
+        const { entity_type, position: { x, y }, health } = entity;
 
         const sprite = SPRITE_MAP.get(entity_type);
         if (sprite) {

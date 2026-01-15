@@ -18,6 +18,11 @@ export interface EntityLoadPacket {
     entity: EntityType,
 }
 
+export interface EntityUnloadPacket {
+    packet_type: 'entity_unload',
+    id: string,
+}
+
 export interface PlayerRegisterPacket {
     packet_type: 'player_register';
     game_name: string;
@@ -47,12 +52,32 @@ export interface SystemMessagePacket {
     message: string,
 }
 
+export interface PlayerAttackPacket {
+    packet_type: 'player_attack',
+    cursor_world_pos: { x: number; y: number },
+};
+
+export interface EntityDamagePacket {
+    packet_type: 'entity_damage',
+    id: string,
+    new_health: number,
+};
+
+export interface EntityDeathPacket {
+    packet_type: 'entity_death',
+    id: string,
+};
+
 export type Packet =
     EntityMovePacket |
     EntityLoadPacket |
+    EntityUnloadPacket |
     TerrainChunkPacket |
     PlayerRegisterPacket |
     PlayerRegisteredPacket |
     ChatMessagePacket |
     ChatMessageSendPacket |
-    SystemMessagePacket;
+    SystemMessagePacket |
+    PlayerAttackPacket |
+    EntityDamagePacket |
+    EntityDeathPacket;

@@ -36,6 +36,9 @@ pub enum Packet {
     #[serde(rename = "entity_load")]
     EntityLoad { entity: Entity },
 
+    #[serde(rename = "entity_unload")]
+    EntityUnload { id: Uuid },
+
     #[serde(rename = "entity_move")]
     EntityMove { id: Uuid, new_position: Vec2 },
 
@@ -43,12 +46,24 @@ pub enum Packet {
     ChatMessageSend { message: String },
 
     #[serde(rename = "chat_message")]
-    ChatMessage { 
-        id: Uuid, 
-        message: String, 
-        username: String 
+    ChatMessage {
+        id: Uuid,
+        message: String,
+        username: String,
     },
 
     #[serde(rename = "system_message")]
     SystemMessage { message: String },
+
+    #[serde(rename = "player_attack")]
+    PlayerAttack { cursor_world_pos: Vec2 },
+
+    #[serde(rename = "entity_damage")]
+    EntityDamage { id: Uuid, new_health: i32 },
+
+    #[serde(rename = "entity_death")]
+    EntityDeath {
+        id: Uuid,
+        // TODO: item drops
+    },
 }

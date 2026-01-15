@@ -9,7 +9,10 @@ import type {
     EntityMovePacket,
     ChatMessagePacket,
     SystemMessagePacket,
-    TerrainTileType
+    TerrainTileType,
+    EntityUnloadPacket,
+    EntityDamagePacket,
+    EntityDeathPacket
 } from '@type';
 
 import { Renderer } from '@render';
@@ -190,6 +193,7 @@ class Game {
                 const id = entityData['id'];
                 const position = Vec2.from(entityData['position']);
                 const value = entityData['value'];
+                const health = entityData['health'];
 
                 let entity: EntityType;
 
@@ -197,7 +201,8 @@ class Game {
                     entity = <EntityType>{
                         id,
                         position,
-                        entity_type: value
+                        entity_type: value,
+                        health
                     };
                 } else {
                     const entity_type = Object.keys(value)[0];
@@ -206,6 +211,7 @@ class Game {
                         id,
                         position,
                         entity_type,
+                        health,
                         ...value[entity_type]
                     };
 
@@ -222,6 +228,10 @@ class Game {
                     entity
                 };
             }
+            case 'entity_unload': return {
+                packet_type,
+                id: data['id'],
+            }
             case 'entity_move': return {
                 packet_type,
                 id: data['id'],
@@ -237,6 +247,15 @@ class Game {
                 packet_type,
                 message: data['message'],
             }
+            case 'entity_damage': return {
+                packet_type,
+                id: data['id'],
+                new_health: data['new_health'],
+            }
+            case 'entity_death': return {
+                packet_type,
+                id: data['id'],
+            }
         }
 
         throw new Error(`Do not know how to parse packet of type "${packet_type}"`);
@@ -244,6 +263,10 @@ class Game {
 
     private onEntityLoad(packet: EntityLoadPacket) {
         this.entities.set(packet.entity.id, packet.entity);
+    }
+
+    private onEntityUnload(packet: EntityUnloadPacket) {
+        this.entities.delete(packet.id);
     }
 
     private onEntityMove(packet: EntityMovePacket) {
@@ -255,6 +278,22 @@ class Game {
         }
 
         entity.position = packet.new_position;
+    }
+
+    private onEntityDamage(packet: EntityDamagePacket) {
+        const ent = this.entities.get(packet.id);
+        if (!ent) return;
+
+        ent.health = packet.new_health;
+
+        if (packet.id === this.playerId) {
+            // TODO: screen flash / damage sound
+        }
+    }
+
+    private onEntityDeath(packet: EntityDeathPacket) {
+        // TODO: death sound
+        this.entities.delete(packet.id);
     }
 
     private onPlayerRegistered(packet: PlayerRegisteredPacket) {
@@ -299,11 +338,14 @@ class Game {
     private recv(packet: Packet) {
         switch (packet.packet_type) {
             case 'entity_load': this.onEntityLoad(packet); break;
+            case 'entity_unload': this.onEntityUnload(packet); break;
             case 'entity_move': this.onEntityMove(packet); break;
             case 'player_registered': this.onPlayerRegistered(packet); break;
             case 'terrain_chunk': this.onTerrainChunk(packet); break;
             case 'chat_message': this.onChatMessage(packet); break;
             case 'system_message': this.onSystemMessage(packet); break;
+            case 'entity_damage': this.onEntityDamage(packet); break;
+            case 'entity_death': this.onEntityDeath(packet); break;
             default: console.warn(`No handler found for packet of type "${packet.packet_type}"`);
         }
     }
@@ -367,13 +409,21 @@ class Game {
         this.entityShader.renderDispatchedEntities();
 
         for (let entity of this.entities.values()) {
-            if (entity.entity_type != 'player') continue;
+            if (entity.entity_type == 'player') {
+                // if (entity.id != this.playerId) {
+                    this.textShader.renderText(
+                        entity.username,
+                        entity.position.x,
+                        entity.position.y + 1.5
+                    );
+                // }
+            }
 
             if (entity.id != this.playerId) {
                 this.textShader.renderText(
-                    entity.username,
+                    entity.health.toString(),
                     entity.position.x,
-                    entity.position.y + 1
+                    entity.position.y - 1
                 );
             }
         }
@@ -623,6 +673,20 @@ class Game {
 
         this.canvas.addEventListener("mouseleave", () => {
             this.cursorTile = null;
+        });
+
+        this.canvas.addEventListener("mousedown", ev => {
+            if (ev.button !== 0) return; // LMB
+            if (!this.cursorTile) return;
+            if (this.chatFocused) return;
+
+            this.send({
+                packet_type: 'player_attack',
+                cursor_world_pos: {
+                    x: this.cursorTile.x,
+                    y: this.cursorTile.y,
+                }
+            });
         });
 
         setInterval(() => this.ws.send(''), 20 * 1000);
