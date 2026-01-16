@@ -42,7 +42,7 @@
       background: #11111180;
       color: white;
       padding: 8px;
-      margin: 8px
+      margin: 8px;
     }
 
     #game__chat__messages {
@@ -127,6 +127,36 @@
     #scale-slider {
       z-index: 100;
     }
+
+    #game__hud {
+      width: 100%;
+      display: none;
+      justify-content: space-between;
+      gap: 16px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+    }
+
+    .game__hud__hp {
+      user-select: none;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      z-index: 100;
+      color: white;
+      background-color: #111111af;
+      padding: 4px 16px;
+      border-radius: 6px;
+      margin: 8px;
+      font-size: 32px;
+      font-weight: bold;
+    }
+
+    .game__hud__hp--critical {
+      background-color: #500000af;
+      color: rgb(255, 194, 194);
+    }
   </style>
 </head>
 
@@ -152,6 +182,14 @@
     <div id="game__chat">
       <div id="game__chat__messages"></div>
       <input id="game__chat__input" placeholder="Type a message..." type="text" maxlength="64" />
+    </div>
+  </div>
+
+  <div id="game__hud">
+    <div id="game__hud__inventory"></div>
+    <div class="game__hud__hp">
+      <div id="game__hud__hp_icon">✚</div>
+      <span id="game__hud__hp_value">100</span>
     </div>
   </div>
 

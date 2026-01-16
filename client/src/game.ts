@@ -41,7 +41,9 @@ const NON_WALKABLE_TILES = new Set<TerrainTileType>([
     "DeepWater",
 ]);
 
-function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null|number {
+const HP_CRITICAL_THRESHOLD = 20;
+
+function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null | number {
     const { x, y } = newPosition.sub(position);
 
     const sx = Math.sign(x);
@@ -103,7 +105,7 @@ class Game {
         this.healthBarShader = new HealthBarShader(this.renderer);
 
         this.chatInput.addEventListener("keydown", ev => {
-            if (ev.key === "Enter") {
+            if (ev.key === "Enter" && this.chatInput.value.trim().length > 0) {
                 this.send({
                     packet_type: "chat_message_send",
                     message: this.chatInput.value,
@@ -169,6 +171,22 @@ class Game {
             ws.onclose = console.warn;
             ws.onerror = console.error;
         })
+    }
+
+    private updateHpCriticalState() {
+        const hp = this.entities.get(this.playerId!)?.health;
+        if (!hp) return;
+
+        const hpValueSpan = document.getElementById("game__hud__hp_value") as HTMLSpanElement;
+        const hpDiv = document.querySelector(".game__hud__hp") as HTMLDivElement;
+
+        hpValueSpan.textContent = hp.toString();
+
+        if (hp <= HP_CRITICAL_THRESHOLD) {
+            hpDiv.classList.add("game__hud__hp--critical");
+        } else {
+            hpDiv.classList.remove("game__hud__hp--critical");
+        }
     }
 
     private parsePacket(data: any): Packet {
@@ -291,6 +309,7 @@ class Game {
 
         if (packet.id === this.playerId) {
             // TODO: screen flash / damage sound
+            this.updateHpCriticalState();
         }
     }
 
@@ -304,6 +323,10 @@ class Game {
         const chatbox = document.getElementById('game__chat');
         if (chatbox) {
             chatbox.style.display = 'flex';
+        }
+        const hud = document.getElementById('game__hud');
+        if (hud) {
+            hud.style.display = 'flex';
         }
     }
 
@@ -370,7 +393,7 @@ class Game {
 
     private getTerrainTileAt(pos: Vec2): TerrainTileType | null {
         pos = new Vec2(pos.x + 0.5, pos.y + 0.5);
-        
+
         const cx = Math.floor(pos.x / 8);
         const cy = Math.floor(pos.y / 8);
 
@@ -644,7 +667,7 @@ class Game {
             this.cursorTile = null;
             return;
         }
-        
+
         const rect = this.canvas.getBoundingClientRect();
 
         const mx = ev.clientX - rect.left;
