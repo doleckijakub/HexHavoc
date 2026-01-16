@@ -43,6 +43,15 @@ const NON_WALKABLE_TILES = new Set<TerrainTileType>([
 
 const HP_CRITICAL_THRESHOLD = 20;
 
+const numericCodes = {
+    'Digit1': 0,
+    'Digit2': 1,
+    'Digit3': 2,
+    'Digit4': 3,
+    'Digit5': 4,
+    'Digit6': 5,
+};
+
 function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null | number {
     const { x, y } = newPosition.sub(position);
 
@@ -681,6 +690,13 @@ class Game {
         );
     }
 
+    private updateItemSelection(index: number) {
+        const slotElement = document.getElementById(`slot_${index}`) as HTMLInputElement;
+        if (slotElement) {
+            slotElement.checked = true;
+        }
+    }
+
     public run() {
         this.lastLoopTimestamp = performance.now();
 
@@ -689,15 +705,23 @@ class Game {
         window.addEventListener("keydown", e => {
             this.keyboardState[e.code] = true && !this.chatFocused;
 
-            if (e.code === 'Enter' && !this.chatFocused) {
+            if (this.chatFocused) {
+                return;
+            }
+
+            if (e.code === 'Enter') {
                 e.preventDefault();
                 this.chatInput.focus();
             }
 
-            if (e.code === 'Slash' && !this.chatFocused) {
+            if (e.code === 'Slash') {
                 e.preventDefault();
                 this.chatInput.focus();
                 this.chatInput.value = '/';
+            }
+
+            if (e.code in numericCodes) {
+                this.updateItemSelection(numericCodes[e.code as keyof typeof numericCodes]);
             }
         });
 

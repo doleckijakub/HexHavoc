@@ -157,6 +157,42 @@
       background-color: #500000af;
       color: rgb(255, 194, 194);
     }
+
+    #game__hud__inventory {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      z-index: 100;
+      color: white;
+      background-color: #111111af;
+      padding: 4px 16px;
+      border-radius: 6px;
+      margin: 8px;
+    }
+
+    #game__hud__inventory__slots {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .game__hud__inventory__slot {
+      width: 40px;
+      height: 40px;
+      border-radius: 4px;
+      border: 2px solid #111;
+      background-color: #111;
+      cursor: pointer;
+    }
+
+    .game__hud__inventory__slot input[type="radio"] {
+      display: none;
+    }
+
+    .game__hud__inventory__slot:has(input:checked) {
+      border-color: #cfe6d1;
+      border-width: 2px;
+    }
   </style>
 </head>
 
@@ -186,7 +222,29 @@
   </div>
 
   <div id="game__hud">
-    <div id="game__hud__inventory"></div>
+    <div id="game__hud__inventory">
+      <div id="game__hud__inventory__slots">
+        <label class="game__hud__inventory__slot">
+          <input id="slot_0" type="radio" name="inventory-slot" checked />
+        </label>
+        <label class="game__hud__inventory__slot">
+          <input id="slot_1" type="radio" name="inventory-slot" />
+        </label>
+        <label class="game__hud__inventory__slot">
+          <input id="slot_2" type="radio" name="inventory-slot" />
+        </label>
+        <label class="game__hud__inventory__slot">
+          <input id="slot_3" type="radio" name="inventory-slot" />
+        </label>
+        <label class="game__hud__inventory__slot">
+          <input id="slot_4" type="radio" name="inventory-slot" />
+        </label>
+        <label class="game__hud__inventory__slot">
+          <input id="slot_5" type="radio" name="inventory-slot" />
+        </label>
+      </div>
+    </div>
+
     <div class="game__hud__hp">
       <div id="game__hud__hp_icon">✚</div>
       <span id="game__hud__hp_value">100</span>
