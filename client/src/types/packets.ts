@@ -68,6 +68,11 @@ export interface EntityDeathPacket {
     id: string,
 };
 
+export interface InventorySelectPacket {
+    packet_type: 'inventory_select',
+    selected: number,
+}
+
 export type Packet =
     EntityMovePacket |
     EntityLoadPacket |
@@ -80,4 +85,5 @@ export type Packet =
     SystemMessagePacket |
     PlayerAttackPacket |
     EntityDamagePacket |
-    EntityDeathPacket;
+    EntityDeathPacket |
+    InventorySelectPacket;

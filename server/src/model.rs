@@ -25,10 +25,67 @@ impl Vec2 {
     }
 }
 
+#[derive(PartialEq, Eq)]
+enum ToolType {
+    Sword,
+    Pickaxe,
+    Axe,
+}
+
+#[derive(PartialEq, Eq)]
+enum ToolMaterial {
+    Iron,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum Item {
+    #[serde(rename = "iron_sword")]
+    IronSword,
+
+    #[serde(rename = "iron_pickaxe")]
+    IronPickaxe,
+
+    #[serde(rename = "iron_axe")]
+    IronAxe,
+}
+
+impl Item {
+    fn tool_type(&self) -> Option<ToolType> {
+        Some(match self {
+            Item::IronSword => ToolType::Sword,
+            Item::IronPickaxe => ToolType::Pickaxe,
+            Item::IronAxe => ToolType::Axe,
+        })
+    }
+
+    fn tool_material(&self) -> Option<ToolMaterial> {
+        Some(match self {
+            Item::IronSword | Item::IronPickaxe | Item::IronAxe => ToolMaterial::Iron,
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Inventory {
+    pub slots: Vec<Option<Item>>,
+    pub selected: i32,
+}
+
+impl Inventory {
+    fn hand_item(&self) -> Option<Item> {
+        if let Some(item) = self.slots.get(self.selected as usize) {
+            item.clone()
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct EntityPlayer {
     pub username: String,
     pub skin: i32,
+    pub inventory: Inventory,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -71,6 +128,26 @@ pub enum EntityType {
 
     #[serde(rename = "sea_shell")]
     SeaShell,
+}
+
+impl EntityType {
+    fn best_damaging_tool(&self) -> ToolType {
+        match self {
+            EntityType::Player(_) => ToolType::Sword,
+            EntityType::ForestTree => ToolType::Axe,
+            EntityType::SpruceTree => ToolType::Axe,
+            EntityType::JungleTree => ToolType::Axe,
+            EntityType::Cactus => ToolType::Axe,
+            EntityType::TreeStump => ToolType::Axe,
+            EntityType::IceSpike => ToolType::Pickaxe,
+            EntityType::Bush => ToolType::Axe,
+            EntityType::Stone => ToolType::Pickaxe,
+            EntityType::BigStone => ToolType::Pickaxe,
+            EntityType::TreeLog => ToolType::Axe,
+            EntityType::TallGrass => ToolType::Axe,
+            EntityType::SeaShell => ToolType::Pickaxe,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -148,7 +225,21 @@ impl Entity {
         Self::new(
             id,
             position,
-            EntityType::Player(EntityPlayer { username, skin }),
+            EntityType::Player(EntityPlayer {
+                username,
+                skin,
+                inventory: Inventory {
+                    slots: vec![
+                        Some(Item::IronSword),
+                        Some(Item::IronPickaxe),
+                        Some(Item::IronAxe),
+                        None,
+                        None,
+                        None,
+                    ],
+                    selected: 0,
+                },
+            }),
             MAX_PLAYER_HEALTH,
         )
     }
@@ -414,9 +505,9 @@ impl Client {
                 ..
             } = game.entity_map.get(&self.id).unwrap()
             {
-                Some(p.clone())
+                p.clone()
             } else {
-                None
+                panic!("Attack has no attacker");
             };
 
             let mut hit: Option<Uuid> = None;
@@ -435,8 +526,8 @@ impl Client {
 
             let Some(target_id) = hit else { return };
 
-            let target = game.entity_map.get_mut(&target_id).unwrap();
-            target.health -= ATTACK_DAMAGE;
+            let target: &mut Entity = game.entity_map.get_mut(&target_id).unwrap();
+            target.health -= calculate_damage(target, attacker.inventory.hand_item());
             let new_health = target.health;
             let target_was_alive = new_health > 0;
 
@@ -489,12 +580,13 @@ impl Client {
                             client.send(Packet::EntityDeath { id: target_id }).await;
                         }
 
-                        if let Some(a) = attacker.clone()
-                            && let Some(v) = victim.clone()
-                        {
+                        if let Some(v) = victim.clone() {
                             client
                                 .send(Packet::SystemMessage {
-                                    message: format!("{} was killed by {}", v.username, a.username),
+                                    message: format!(
+                                        "{} was killed by {}",
+                                        v.username, attacker.username
+                                    ),
                                 })
                                 .await;
                         }
@@ -703,6 +795,21 @@ impl Client {
                 self.handle_attack(cursor_world_pos, state).await;
             }
 
+            Packet::InventorySelect { selected } => {
+                let game_arc = match &self.game {
+                    Some(g) => g.clone(),
+                    _ => return,
+                };
+
+                let mut game = game_arc.lock().await;
+
+                if let Some(Entity { value, .. }) = game.entity_map.get_mut(&self.id)
+                    && let EntityType::Player(player) = value
+                {
+                    player.inventory.selected = selected;
+                }
+            }
+
             other => {
                 self.elog(format!("Sent an unexpected packet: {:?}", other))
                     .await;
@@ -722,5 +829,28 @@ impl ServerState {
         self.game_ids_by_name.insert(name.to_string(), id);
 
         id
+    }
+}
+
+fn calculate_damage(target: &Entity, attacking_item: Option<Item>) -> i32 {
+    if let Some(item) = attacking_item {
+        let mut damage = 5;
+
+        if let Some(tool_type) = item.tool_type() {
+            damage *= 2;
+
+            if tool_type == target.value.best_damaging_tool() {
+                damage *= 2;
+            }
+        }
+
+        damage *= match item.tool_material() {
+            Some(ToolMaterial::Iron) => 2,
+            _ => 1,
+        };
+
+        damage
+    } else {
+        5
     }
 }

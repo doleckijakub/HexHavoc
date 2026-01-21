@@ -1,3 +1,4 @@
+import type { Inventory } from "@type";
 import type { Vec2 } from "./Vec2";
 
 export class Entity {
@@ -10,6 +11,7 @@ export class EntityPlayer extends Entity {
     entity_type: 'player';
     username: string;
     skin: number;
+    inventory: Inventory;
 
     previous_position: Vec2;
     direction: number;

@@ -37,3 +37,21 @@ export interface TerrainChunk {
     position: Vec2,
     contents: TerrainTileType[],
 }
+
+export type Item =
+    | "iron_sword"
+    | "iron_pickaxe"
+    | "iron_axe";
+
+export function itemToNumber(item: Item): number {
+    return {
+        "iron_sword": 0,
+        "iron_pickaxe": 1,
+        "iron_axe": 2,
+    }[item]!;
+}
+
+export interface Inventory {
+    slots: [Item | null],
+    selected: number,
+}

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::model::{Entity, Vec2};
+use crate::model::{Entity, Item, Vec2};
 use crate::terrain::TerrainChunk;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,4 +66,13 @@ pub enum Packet {
         id: Uuid,
         // TODO: item drops
     },
+
+    #[serde(rename = "inventory_state")]
+    InventoryState {
+        slots: Vec<Option<Item>>,
+        selected: i32,
+    },
+
+    #[serde(rename = "inventory_select")]
+    InventorySelect { selected: i32 },
 }

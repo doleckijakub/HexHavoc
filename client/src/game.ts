@@ -1,18 +1,19 @@
 import '@fontsource/fusion-pixel-10px-proportional-tc';
 
-import type {
-    Packet,
-    PlayerRegisteredPacket,
-    TerrainChunkPacket,
-    TerrainChunk,
-    EntityLoadPacket,
-    EntityMovePacket,
-    ChatMessagePacket,
-    SystemMessagePacket,
-    TerrainTileType,
-    EntityUnloadPacket,
-    EntityDamagePacket,
-    EntityDeathPacket
+import {
+    type Packet,
+    type PlayerRegisteredPacket,
+    type TerrainChunkPacket,
+    type TerrainChunk,
+    type EntityLoadPacket,
+    type EntityMovePacket,
+    type ChatMessagePacket,
+    type SystemMessagePacket,
+    type TerrainTileType,
+    type EntityUnloadPacket,
+    type EntityDamagePacket,
+    type EntityDeathPacket,
+    itemToNumber
 } from '@type';
 
 import { Renderer } from '@render';
@@ -43,6 +44,7 @@ const NON_WALKABLE_TILES = new Set<TerrainTileType>([
 
 const HP_CRITICAL_THRESHOLD = 20;
 
+const HOTBAR_SIZE = 6;
 const numericCodes = {
     'Digit1': 0,
     'Digit2': 1,
@@ -51,6 +53,8 @@ const numericCodes = {
     'Digit5': 4,
     'Digit6': 5,
 };
+
+import tilemap_items_src from './textures/tilemap_items.png';
 
 function positionDifferenceToDirection(position: Vec2, newPosition: Vec2): null | number {
     const { x, y } = newPosition.sub(position);
@@ -103,6 +107,8 @@ class Game {
     private lastMouseEv: MouseEvent | null = null;
     private cursorTile: Vec2 | null = null;
 
+    private tilemap_items: HTMLImageElement;
+
     private constructor(ws: WebSocket) {
         this.canvas = document.getElementById("gl") as HTMLCanvasElement;
         this.renderer = new Renderer(this.canvas);
@@ -136,6 +142,9 @@ class Game {
             this.chatFocused = false;
             this.chatInput.value = "";
         });
+
+        this.tilemap_items = new Image();
+        this.tilemap_items.src = tilemap_items_src;
 
         this.ws = ws;
     }
@@ -418,9 +427,17 @@ class Game {
         return chunk.contents[index] ?? null;
     }
 
+    private previousInventoryJSON: string = "";
+
     private loop(now: number) {
         this.render(now);
         this.update(now);
+
+        const inventoryJSON = JSON.stringify(this.getPlayer()?.inventory ?? {});
+        if (this.previousInventoryJSON != inventoryJSON) {
+            this.previousInventoryJSON = inventoryJSON;
+            this.updateInventoryUI();
+        }
 
         requestAnimationFrame(this.loop.bind(this));
     }
@@ -496,8 +513,8 @@ class Game {
 
     private getMaxHealth(entity: EntityType): number {
         switch (entity.entity_type) {
-            case 'player': return 100;
-            default: return 25;
+            case 'player': return 250;
+            default: return 100;
         }
     }
 
@@ -691,9 +708,39 @@ class Game {
     }
 
     private updateItemSelection(index: number) {
-        const slotElement = document.getElementById(`slot_${index}`) as HTMLInputElement;
-        if (slotElement) {
-            slotElement.checked = true;
+        const slotElement = document.getElementById(`slot_${index}`)! as HTMLInputElement;
+        slotElement.checked = true;
+
+        this.send({
+            packet_type: 'inventory_select',
+            selected: index,
+        });
+    }
+
+    private updateInventoryUI() {
+        const player = this.getPlayer();
+        if (!player) return;
+
+        if (!this.tilemap_items.complete) {
+            this.previousInventoryJSON = '';
+            return;
+        }
+
+        for (let i = 0; i < HOTBAR_SIZE; i++) {
+            const input = document.getElementById(`slot_${i}`) as HTMLInputElement;
+            if (!input || !input.parentElement) continue;
+
+            const slot = input.parentElement;
+
+            slot.querySelector('img')?.remove();
+
+            const item = player.inventory.slots[i];
+            if (!item) continue;
+
+            const img = this.tilemap_items.cloneNode(true) as HTMLImageElement;
+            img.style.transform = `translateX(-${100 * itemToNumber(item) / 3}%)`;
+
+            slot.appendChild(img);
         }
     }
 
@@ -749,6 +796,11 @@ class Game {
                     y: this.cursorTile.y,
                 }
             });
+        });
+
+        this.canvas.addEventListener("wheel", ev => {
+            const cur = Number.parseInt((document.querySelector('.game__hud__inventory__slot:has(input:checked) input') as HTMLInputElement).id.substring(5));
+            this.updateItemSelection((cur + Math.sign(ev.deltaY) + HOTBAR_SIZE) % HOTBAR_SIZE);
         });
 
         setInterval(() => this.ws.send(''), 20 * 1000);

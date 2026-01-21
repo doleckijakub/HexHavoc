@@ -183,10 +183,17 @@
       border: 2px solid #111;
       background-color: #111;
       cursor: pointer;
+      overflow: hidden;
     }
 
     .game__hud__inventory__slot input[type="radio"] {
       display: none;
+    }
+
+    .game__hud__inventory__slot img {
+      image-rendering: pixelated;
+      width: 300%;
+      height: 100%;
     }
 
     .game__hud__inventory__slot:has(input:checked) {
