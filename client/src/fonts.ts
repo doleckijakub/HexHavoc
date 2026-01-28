@@ -1,0 +1,1 @@
+import '@fontsource/fusion-pixel-10px-proportional-tc';

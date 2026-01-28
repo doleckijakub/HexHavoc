@@ -1,5 +1,5 @@
 const TILE_SIZE = 16;
-const SCALE = 4;
+const SCALE = 5;
 const ROTATION_COUNT = 8;
 const FRAME_DELAY = 200;
 const SKIN_COUNT = 3;

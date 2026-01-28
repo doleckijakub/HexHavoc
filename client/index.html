@@ -5,13 +5,89 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HexHavoc</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: 'Fusion Pixel 10px Proportional TC', sans-serif;
+    }
+
+    #new-game-form {
+      margin-top: 128px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    form input {
+      border: 1px solid rgb(68, 68, 68);
+      background: #000;
+      padding: 8px;
+      color: #fff;
+      font-family: inherit;
+      border-radius: 4px;
+    }
+
+    form input:focus {
+      outline: 2px solid #00ff88;
+    }
+
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* Firefox */
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    #create-game-button {
+      width: 100%;
+      min-height: 36px;
+      font-family: inherit;
+      border: 2px solid #fff;
+      background: #fff;
+      color: #111;
+      border-radius: 4px;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+
+    #create-game-button:hover {
+      background: transparent;
+      color: #fff;
+    }
+  </style>
+
+  <script type="module" src="src/fonts.ts"></script>
 </head>
 
 <body>
   <form id="new-game-form" method="POST" action="/new_game">
-    <label>Game name: <input type="text" name="name" required></label><br />
-    <label>Seed: <input type="number" name="seed" required></label><br />
-    <input type="submit">
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Game name:</label>
+        <input type="text" name="name" required>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label>Seed:</label>
+        <input type="number" name="seed" required>
+      </div>
+
+      <button id="create-game-button" type="submit">Create game</button>
+    </div>
   </form>
   <script>
     const adjectives = [
