@@ -500,14 +500,14 @@ impl Client {
         let (target_id, new_health, target_was_alive, game_id, attacker, victim) = {
             let mut game = game_arc.lock().await;
 
-            let attacker = if let Entity {
+            let attacker = if let Some(Entity {
                 value: EntityType::Player(p),
                 ..
-            } = game.entity_map.get(&self.id).unwrap()
+            }) = game.entity_map.get(&self.id)
             {
                 p.clone()
             } else {
-                panic!("Attack has no attacker");
+                return;
             };
 
             let mut hit: Option<Uuid> = None;
